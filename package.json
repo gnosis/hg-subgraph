@@ -1,0 +1,25 @@
+{
+  "name": "PredictionMarkets",
+  "version": "0.1.0",
+  "scripts": {
+    "create": "graph create InfiniteStyles/exampleGraph --node https://api.thegraph.com/deploy/",
+    "create-local": "graph create InfiniteStyles/exampleGraph --node http://127.0.0.1:8020",
+    "codegen": "graph codegen --debug --output-dir src/types/",
+    "build": "graph build --debug",
+    "deploy": "graph deploy InfiniteStyles/pm --debug --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
+    "deploy-local": "graph deploy InfiniteStyles/exampleGraph --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
+    "refresh-abi": "cd node_modules/@gnosis.pm/hg-contracts && npm i && truffle compile && cd ../../.. && node abiGenerator.js"
+  },
+  "devDependencies": {
+    "@gnosis.pm/hg-contracts": "^2.0.1",
+    "@graphprotocol/graph-cli": "^0.7.1",
+    "@graphprotocol/graph-ts": "^0.5.0"
+  },
+  "dependencies": {
+    "babel-polyfill": "^6.26.0",
+    "babel-register": "^6.26.0",
+    "truffle": "^5.0.4",
+    "truffle-contract": "^4.0.5",
+    "truffle-hdwallet-provider": "^1.0.4"
+  }
+}

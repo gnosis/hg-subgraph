@@ -1,0 +1,35 @@
+type Condition @entity {
+  id: ID!
+  creator: Bytes!
+  oracle: Bytes!
+  questionId: Bytes!
+  outcomeSlotCount: BigInt!
+  resolved: Boolean!
+  payoutNumerators: [BigInt!]
+  payoutDenominator: BigInt
+  createTransaction: Bytes!
+  creationTimestamp: BigInt!
+  resolveTransaction: Bytes
+  resolveTimestamp: BigInt
+  blockNumber: BigInt
+}
+
+type Position @entity {
+id: ID!
+stakeholder: Bytes!
+collateralToken: Bytes!
+parentCollectionId: Bytes
+conditionId: Condition!
+amount: BigInt
+}
+
+# type Collection @entity {
+#  id: ID!
+#  amount: Int
+# }
+
+type Monolith @entity {
+  id: ID!
+  totalConditions: BigInt
+  totalPositions: BigInt
+}

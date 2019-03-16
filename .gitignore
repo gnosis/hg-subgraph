@@ -1,0 +1,6 @@
+.env
+node_modules
+exampleGraph
+src/types
+dist
+.DS_STORE
