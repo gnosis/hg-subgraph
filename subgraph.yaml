@@ -8,7 +8,7 @@ dataSources:
     name: PredictionMarketSystem
     network: rinkeby
     source:
-      address: '0x7Bfe59466f4fBeF25139Bd639e308Fa58C2C36EA'
+      address: '0xec0eB55f84Dd60991170549bcD4b3A05c1b16Bdf'
       abi: PredictionMarketSystem
     mapping:
       kind: ethereum/events
