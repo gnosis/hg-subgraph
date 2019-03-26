@@ -12,24 +12,19 @@ type Condition @entity {
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
   blockNumber: BigInt
+  totalValue: BigInt 
 }
 
 type Position @entity {
-id: ID!
-stakeholder: Bytes!
-collateralToken: Bytes!
-parentCollectionId: Bytes
-conditionId: Condition!
-amount: BigInt
+  id: ID!
+  stakeholder: Bytes!
+  collateralToken: Bytes!
+  parentCollectionId: Bytes
+  conditionId: Condition!
+  amount: BigInt
 }
 
-# type Collection @entity {
-#  id: ID!
-#  amount: Int
-# }
-
-type Monolith @entity {
-  id: ID!
-  totalConditions: BigInt
-  totalPositions: BigInt
+type Collection @entity {
+ id: ID!
+ totalValue: BigInt
 }
