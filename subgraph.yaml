@@ -6,9 +6,11 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: PredictionMarketSystem
-    network: rinkeby
+    # network: rinkeby
+    network: dev
     source:
-      address: '0xec0eB55f84Dd60991170549bcD4b3A05c1b16Bdf'
+      # address: '0xec0eB55f84Dd60991170549bcD4b3A05c1b16Bdf'
+      address: '0xCfEB869F69431e42cdB54A4F4f105C19C080A601'
       abi: PredictionMarketSystem
     mapping:
       kind: ethereum/events
