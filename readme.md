@@ -28,5 +28,6 @@ Here is the subgraph deployed
 
 5.  Create and deploy subgraph:
 
+        npm run codegen
         npm run create-local
         npm run deploy-local
