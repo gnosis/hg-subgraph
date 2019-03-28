@@ -10,7 +10,7 @@
     "deploy-local": "graph deploy InfiniteStyles/exampleGraph --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
     "refresh-abi": "cd node_modules/@gnosis.pm/hg-contracts && truffle compile && cd ../../.. && node abiGenerator.js",
     "migrate": "cd node_modules/@gnosis.pm/hg-contracts && echo 'module.exports={networks:{ganache:{host:\"localhost\",port:8545,network_id:\"*\"}}}' > truffle-local.js && ln -sf ../.. node_modules && truffle migrate --network=ganache && rm -f node_modules",
-    "test": "mocha"
+    "test": "npm run deploy-local && mocha --exit"
   },
   "devDependencies": {
     "@gnosis.pm/hg-contracts": "^2.0.5",

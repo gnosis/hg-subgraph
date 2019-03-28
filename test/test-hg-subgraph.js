@@ -40,15 +40,11 @@ describe('hg-subgraph', function() {
 
         do { await delay(10) }
         while((await axios.post('http://127.0.0.1:8000/subgraphs', {
-            operationName: null,
-            query: '{subgraphDeployments{latestEthereumBlockNumber}}',
-            variables: null,
-        })).data.data.subgraphDeployments[0].latestEthereumBlockNumber < targetBlockNumber);
+            query: '{subgraphVersions(orderBy:createdAt orderDirection:desc first:1){deployment{latestEthereumBlockNumber}}}',
+        })).data.data.subgraphVersions[0].deployment.latestEthereumBlockNumber < targetBlockNumber);
 
         const { condition } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
-            operationName: null,
             query: `{condition(id:"${conditionId}"){oracle questionId outcomeSlotCount}}`,
-            variables: null,
         })).data.data
 
         assert(condition, 'condition not found')
