@@ -12,8 +12,6 @@ export function handleConditionPreparation(event: ConditionPreparation): void {
   condition.createTransaction = event.transaction.hash
   condition.creationTimestamp = event.block.timestamp
   condition.blockNumber = event.block.number
-  condition.payoutNumerators = []
-  condition.payoutDenominator = 0
   condition.totalValue = 0
   condition.save()
 }
@@ -21,8 +19,8 @@ export function handleConditionPreparation(event: ConditionPreparation): void {
 export function handleConditionResolution(event: ConditionResolution): void {
   let condition = Condition.load(event.params.conditionId.toHex())
   condition.payoutNumerators = event.params.payoutNumerators
-  let deonominator: BigInt = add(event.params.payoutNumerators)
-  condition.payoutDenominator = deonominator
+  let denominator: BigInt = sum(event.params.payoutNumerators)
+  condition.payoutDenominator = denominator
   condition.resolveTransaction = event.transaction.hash
   condition.resolveTimestamp = event.block.timestamp
   condition.resolved = true;
@@ -97,12 +95,10 @@ export function handlePositionsMerge(event: PositionsMerge): void {
 
 
 // Helper functions (mandated by AssemblyScript for memory issues)
-function add(a: BigInt[]): BigInt {
-  let out = new Array<BigInt>(a.length)
+function sum(a: BigInt[]): BigInt {
   let result: BigInt = 0;
   for (let i = 0; i < a.length; i++) {
-    out[i] = a[i]
-    result = result + out[i]
+    result = result + a[i]
   }
   return result;
 }
