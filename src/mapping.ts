@@ -39,7 +39,6 @@ export function handlePositionSplit(event: PositionSplit): void {
       if (collection == null) {
         collection = new Collection(collectionId.toHex())
       }
-      collection.totalValue += event.params.amount
       collection.save()
       
       let positionId = contract.getPositionId(event.params.collateralToken, collectionId);
@@ -47,17 +46,12 @@ export function handlePositionSplit(event: PositionSplit): void {
       if (position == null) {
         position = new Position(positionId.toHex())
       }
-      position.stakeholder = event.params.stakeholder
       position.collateralToken = event.params.collateralToken
-      position.parentCollectionId = event.params.parentCollectionId
-      position.conditionId = event.params.conditionId.toHex()
-      position.amount += event.params.amount
       position.save()
     }
 
 
     let condition = Condition.load(event.params.conditionId.toHex())
-    condition.totalValue += event.params.amount
     condition.save()
 }
 
@@ -71,7 +65,6 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     if (collection == null) {
       collection = new Collection(collectionId.toHex())
     }
-    collection.totalValue += event.params.amount
     collection.save()
     
     let positionId = contract.getPositionId(event.params.collateralToken, collectionId);
@@ -79,18 +72,12 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     if (position == null) {
       position = new Position(positionId.toHex())
     }
-    position.stakeholder = event.params.stakeholder
     position.collateralToken = event.params.collateralToken
-    position.parentCollectionId = event.params.parentCollectionId
-    position.conditionId = event.params.conditionId.toHex()
-    position.amount += event.params.amount
     position.save()
   }
 
   let condition = Condition.load(event.params.conditionId.toHex())
-  condition.totalValue -= event.params.amount
   condition.save()
-
 }
 
 

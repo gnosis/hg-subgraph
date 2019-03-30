@@ -17,14 +17,9 @@ type Condition @entity {
 
 type Position @entity {
   id: ID!
-  stakeholder: Bytes!
   collateralToken: Bytes!
-  parentCollectionId: Bytes
-  conditionId: Condition!
-  amount: BigInt
 }
 
 type Collection @entity {
  id: ID!
- totalValue: BigInt
 }
