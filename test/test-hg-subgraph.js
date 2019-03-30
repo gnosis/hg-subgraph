@@ -84,7 +84,7 @@ describe('hg-subgraph', function() {
 
         condition = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
             query: `{
-                condition(id:"${conditionId}") {
+                condition(id: "${conditionId}") {
                     resolved
                     payoutNumerators
                     payoutDenominator
@@ -98,7 +98,7 @@ describe('hg-subgraph', function() {
         condition.payoutNumerators.forEach((num, i) => assert.equal(num, expectedNumerators[i]))
     })
 
-    it('will split and merge positions correctly', async () => {
+    it('will collect info from splitting and merging positions', async () => {
         const [creator, oracle, trader] = accounts
         const conditionsInfo = Array.from({ length: 3 }, () => {
             const questionId = web3.utils.randomHex(32)
@@ -117,5 +117,47 @@ describe('hg-subgraph', function() {
 
         await collateralToken.mint(trader, 100, { from: minter })
         assert.equal(await collateralToken.balanceOf(trader), 100)
+
+        await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader })
+        const partition = [0b101, 0b010]
+        await predictionMarketSystem.splitPosition(collateralToken.address, '0x0000000000000000000000000000000000000000000000000000000000000000', conditionsInfo[0].conditionId, partition, 100, { from: trader })
+
+        const collectionIds = partition.map(indexSet => web3.utils.soliditySha3(
+            { type: 'bytes32', value: conditionsInfo[0].conditionId },
+            { type: 'uint', value: indexSet },
+        ))
+
+        const positionIds = collectionIds.map(collectionId => web3.utils.soliditySha3(
+            { type: 'address', value: collateralToken.address },
+            { type: 'bytes32', value: collectionId },
+        ))
+
+        assert.equal(await collateralToken.balanceOf(trader), 0)
+
+        await waitForGraphSync()
+
+        for(const collectionId of collectionIds) {
+            const { collection } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
+                query: `{
+                    collection(id: "${collectionId}") {
+                        id
+                    }
+                }`,
+            })).data.data
+        }
+
+        for(const positionId of positionIds) {
+            assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100)
+            const { position } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
+                query: `{
+                    position(id: "${positionId}") {
+                        id
+                        collateralToken
+                    }
+                }`,
+            })).data.data
+
+            assert.equal(position.collateralToken, collateralToken.address.toLowerCase())
+        }
     })
 })
