@@ -3,23 +3,31 @@ const axios = require('axios')
 const delay = require('delay');
 const TruffleContract = require('truffle-contract')
 const PredictionMarketSystem = TruffleContract(require('@gnosis.pm/hg-contracts/build/contracts/PredictionMarketSystem.json'))
+const ERC20Mintable = TruffleContract(require('openzeppelin-solidity/build/contracts/ERC20Mintable.json'))
+;[PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'))
+const web3 = PredictionMarketSystem.web3
 
 async function waitForGraphSync(targetBlockNumber) {
-        do { await delay(10) }
-        while((await axios.post('http://127.0.0.1:8000/subgraphs', {
-            query: '{subgraphVersions(orderBy:createdAt orderDirection:desc first:1){deployment{latestEthereumBlockNumber}}}',
-        })).data.data.subgraphVersions[0].deployment.latestEthereumBlockNumber < targetBlockNumber);
+    if(targetBlockNumber == null)
+        targetBlockNumber = await web3.eth.getBlockNumber()
+
+    do { await delay(100) }
+    while((await axios.post('http://127.0.0.1:8000/subgraphs', {
+        query: '{subgraphVersions(orderBy:createdAt orderDirection:desc first:1){deployment{latestEthereumBlockNumber}}}',
+    })).data.data.subgraphVersions[0].deployment.latestEthereumBlockNumber < targetBlockNumber);
 }
 
 describe('hg-subgraph', function() {
-    let accounts, predictionMarketSystem, web3
+    this.timeout(5000)
+    let accounts, predictionMarketSystem, collateralToken, minter
 
-    before(async () => {
-        PredictionMarketSystem.setProvider('http://localhost:8545')
-        web3 = PredictionMarketSystem.web3
+    before(async function() {
+        this.timeout(30000)
         accounts = await web3.eth.getAccounts()
-        web3.eth.defaultAccount = accounts[0]
+        web3.eth.defaultAccount = minter = accounts[0]
         predictionMarketSystem = await PredictionMarketSystem.deployed()
+        collateralToken = await ERC20Mintable.new({ from: minter })
+        await waitForGraphSync()
     })
 
     it('matches the configuration', async () => {
@@ -43,13 +51,13 @@ describe('hg-subgraph', function() {
             { type: 'bytes32', value: questionId },
             { type: 'uint', value: outcomeSlotCount },
         )
-        let targetBlockNumber = (await predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, { from: creator })).receipt.blockNumber
+        await predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, { from: creator })
 
-        await waitForGraphSync(targetBlockNumber)
+        await waitForGraphSync()
 
         let { condition } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
             query: `{
-                condition(id:"${conditionId}"){
+                condition(id:"${conditionId}") {
                     creator
                     oracle
                     questionId
@@ -70,13 +78,13 @@ describe('hg-subgraph', function() {
         assert.equal(condition.payoutNumerators, null)
         assert.equal(condition.payoutDenominator, null)
 
-        targetBlockNumber = (await predictionMarketSystem.receiveResult(questionId, '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000', { from: oracle })).receipt.blockNumber
+        await predictionMarketSystem.receiveResult(questionId, '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000', { from: oracle })
 
-        await waitForGraphSync(targetBlockNumber)
+        await waitForGraphSync()
 
         condition = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
             query: `{
-                condition(id:"${conditionId}"){
+                condition(id:"${conditionId}") {
                     resolved
                     payoutNumerators
                     payoutDenominator
@@ -88,5 +96,26 @@ describe('hg-subgraph', function() {
         assert.equal(condition.payoutDenominator, 1)
         const expectedNumerators = [0, 1, 0]
         condition.payoutNumerators.forEach((num, i) => assert.equal(num, expectedNumerators[i]))
+    })
+
+    it('will split and merge positions correctly', async () => {
+        const [creator, oracle, trader] = accounts
+        const conditionsInfo = Array.from({ length: 3 }, () => {
+            const questionId = web3.utils.randomHex(32)
+            const outcomeSlotCount = 3
+            const conditionId = web3.utils.soliditySha3(
+                { type: 'address', value: oracle },
+                { type: 'bytes32', value: questionId },
+                { type: 'uint', value: outcomeSlotCount },
+            )
+            return { questionId, outcomeSlotCount, conditionId }
+        })
+
+        await Promise.all(conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
+            predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, { from: creator })
+        ))
+
+        await collateralToken.mint(trader, 100, { from: minter })
+        assert.equal(await collateralToken.balanceOf(trader), 100)
     })
 })
