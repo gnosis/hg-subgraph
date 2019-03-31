@@ -102,7 +102,7 @@ describe('hg-subgraph', function() {
         const [creator, oracle, trader] = accounts
         const conditionsInfo = Array.from({ length: 3 }, () => {
             const questionId = web3.utils.randomHex(32)
-            const outcomeSlotCount = 3
+            const outcomeSlotCount = 34
             const conditionId = web3.utils.soliditySha3(
                 { type: 'address', value: oracle },
                 { type: 'bytes32', value: questionId },
@@ -119,7 +119,7 @@ describe('hg-subgraph', function() {
         assert.equal(await collateralToken.balanceOf(trader), 100)
 
         await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader })
-        const partition = [0b101, 0b010]
+        const partition = [0b1010101010101010101011111111111111, 0b0101010101010101010100000000000000]
         await predictionMarketSystem.splitPosition(collateralToken.address, '0x0000000000000000000000000000000000000000000000000000000000000000', conditionsInfo[0].conditionId, partition, 100, { from: trader })
 
         const collectionIds = partition.map(indexSet => web3.utils.soliditySha3(
@@ -141,9 +141,12 @@ describe('hg-subgraph', function() {
                 query: `{
                     collection(id: "${collectionId}") {
                         id
+                        testValue
                     }
                 }`,
             })).data.data
+            assert(collection, `collection ${collectionId} not found`)
+            console.log(collectionId, 'vs', collection.testValue)
         }
 
         for(const positionId of positionIds) {
@@ -153,11 +156,14 @@ describe('hg-subgraph', function() {
                     position(id: "${positionId}") {
                         id
                         collateralToken
+                        testValue
                     }
                 }`,
             })).data.data
 
+            assert(position, `position ${positionId} not found`)
             assert.equal(position.collateralToken, collateralToken.address.toLowerCase())
+            console.log(positionId, 'vs', position.testValue)
         }
     })
 })

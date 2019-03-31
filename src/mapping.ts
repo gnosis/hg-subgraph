@@ -1,4 +1,4 @@
-import {BigInt, Bytes } from '@graphprotocol/graph-ts'
+import { crypto, Address, BigInt, Bytes } from '@graphprotocol/graph-ts'
 import { ConditionPreparation, ConditionResolution, PositionSplit, PositionsMerge, PredictionMarketSystem } from './types/PredictionMarketSystem/PredictionMarketSystem'
 import { Condition, Collection, Position } from './types/schema'
 
@@ -27,31 +27,32 @@ export function handleConditionResolution(event: ConditionResolution): void {
   condition.save()
 }
 
-
-
 export function handlePositionSplit(event: PositionSplit): void {
     let contract = PredictionMarketSystem.bind(event.address)
 
-    for (let i=0; i<event.params.partition.length; i++) {
- 
-      let collectionId = contract.getCollectionId(event.params.parentCollectionId, event.params.conditionId, getPartition(event.params.partition, i));
+    let params = event.params
+    let partition = params.partition
+
+    for (let i=0; i<partition.length; i++) {
+      let collectionId = contract.getCollectionId(params.parentCollectionId, params.conditionId, partition[i]);
       let collection = Collection.load(collectionId.toHex())
       if (collection == null) {
         collection = new Collection(collectionId.toHex())
       }
+      collection.testValue = toCollectionId(params.conditionId, partition[i]);
       collection.save()
       
-      let positionId = contract.getPositionId(event.params.collateralToken, collectionId);
+      let positionId = contract.getPositionId(params.collateralToken, collectionId);
       let position = Position.load(positionId.toHex())
       if (position == null) {
         position = new Position(positionId.toHex())
       }
-      position.collateralToken = event.params.collateralToken
+      position.testValue = toPositionId(params.collateralToken, collectionId)
+      position.collateralToken = params.collateralToken
       position.save()
     }
 
-
-    let condition = Condition.load(event.params.conditionId.toHex())
+    let condition = Condition.load(params.conditionId.toHex())
     condition.save()
 }
 
@@ -80,7 +81,6 @@ export function handlePositionsMerge(event: PositionsMerge): void {
   condition.save()
 }
 
-
 // Helper functions (mandated by AssemblyScript for memory issues)
 function sum(a: BigInt[]): BigInt {
   let result: BigInt = 0;
@@ -88,6 +88,30 @@ function sum(a: BigInt[]): BigInt {
     result = result + a[i]
   }
   return result;
+}
+
+function toCollectionId(conditionId: Bytes, indexSet: BigInt): Bytes {
+  let hashPayload = new Uint8Array(64)
+  hashPayload.fill(0)
+  for(let i = 0; i < conditionId.length && i < 32; i++) {
+    hashPayload[i] = conditionId[i]
+  }
+  for(let i = 0; i < indexSet.length && i < 32; i++) {
+    hashPayload[63 - i] = indexSet[i]
+  }
+  return crypto.keccak256(hashPayload as Bytes) as Bytes
+}
+
+function toPositionId(collateralToken: Address, collectionId: Bytes): Bytes {
+  let hashPayload = new Uint8Array(52)
+  hashPayload.fill(0)
+  for(let i = 0; i < collateralToken.length && i < 20; i++) {
+    hashPayload[i] = collateralToken[i]
+  }
+  for(let i = 0; i < collectionId.length && i < 32; i++) {
+    hashPayload[i + 20] = collectionId[i]
+  }
+  return crypto.keccak256(hashPayload as Bytes) as Bytes
 }
 
 function getPartition(partitions: BigInt[], index: i32): BigInt {

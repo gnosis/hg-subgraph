@@ -17,9 +17,11 @@ type Condition @entity {
 
 type Position @entity {
   id: ID!
+  testValue: Bytes
   collateralToken: Bytes!
 }
 
 type Collection @entity {
- id: ID!
+  id: ID!
+  testValue: Bytes
 }
