@@ -101,6 +101,7 @@ function add256(a: Bytes, b: Bytes): Bytes {
 
   let sumBigInt = aBigInt + bBigInt
   let sum = new Uint8Array(32) as Bytes
+  sum.fill(0)
   for(let i = 0; i < sumBigInt.length && i < 32; i++) {
     sum[31 - i] = sumBigInt[i]
   }
