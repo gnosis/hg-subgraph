@@ -6,6 +6,7 @@ const PredictionMarketSystem = TruffleContract(require('@gnosis.pm/hg-contracts/
 const ERC20Mintable = TruffleContract(require('openzeppelin-solidity/build/contracts/ERC20Mintable.json'))
 ;[PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'))
 const web3 = PredictionMarketSystem.web3
+const { randomHex, soliditySha3, toHex, toBN } = web3.utils
 
 async function waitForGraphSync(targetBlockNumber) {
     if(targetBlockNumber == null)
@@ -44,9 +45,9 @@ describe('hg-subgraph', function() {
 
     it('will index conditions upon preparation and update them upon resolution', async () => {
         const [creator, oracle] = accounts
-        const questionId = web3.utils.randomHex(32)
+        const questionId = randomHex(32)
         const outcomeSlotCount = 3
-        const conditionId = web3.utils.soliditySha3(
+        const conditionId = soliditySha3(
             { type: 'address', value: oracle },
             { type: 'bytes32', value: questionId },
             { type: 'uint', value: outcomeSlotCount },
@@ -101,9 +102,9 @@ describe('hg-subgraph', function() {
     it('will collect info from splitting and merging positions', async () => {
         const [creator, oracle, trader] = accounts
         const conditionsInfo = Array.from({ length: 3 }, () => {
-            const questionId = web3.utils.randomHex(32)
-            const outcomeSlotCount = 34
-            const conditionId = web3.utils.soliditySha3(
+            const questionId = randomHex(32)
+            const outcomeSlotCount = 68
+            const conditionId = soliditySha3(
                 { type: 'address', value: oracle },
                 { type: 'bytes32', value: questionId },
                 { type: 'uint', value: outcomeSlotCount },
@@ -119,15 +120,15 @@ describe('hg-subgraph', function() {
         assert.equal(await collateralToken.balanceOf(trader), 100)
 
         await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader })
-        const partition = [0b1010101010101010101011111111111111, 0b0101010101010101010100000000000000]
+        const partition = ['0xffffffff000000000', '0x00000000fffffffff']
         await predictionMarketSystem.splitPosition(collateralToken.address, '0x0000000000000000000000000000000000000000000000000000000000000000', conditionsInfo[0].conditionId, partition, 100, { from: trader })
 
-        const collectionIds = partition.map(indexSet => web3.utils.soliditySha3(
+        const collectionIds = partition.map(indexSet => soliditySha3(
             { type: 'bytes32', value: conditionsInfo[0].conditionId },
             { type: 'uint', value: indexSet },
         ))
 
-        const positionIds = collectionIds.map(collectionId => web3.utils.soliditySha3(
+        const positionIds = collectionIds.map(collectionId => soliditySha3(
             { type: 'address', value: collateralToken.address },
             { type: 'bytes32', value: collectionId },
         ))
@@ -150,6 +151,52 @@ describe('hg-subgraph', function() {
         }
 
         for(const positionId of positionIds) {
+            assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100)
+            const { position } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
+                query: `{
+                    position(id: "${positionId}") {
+                        id
+                        collateralToken
+                        testValue
+                    }
+                }`,
+            })).data.data
+
+            assert(position, `position ${positionId} not found`)
+            assert.equal(position.collateralToken, collateralToken.address.toLowerCase())
+            console.log(positionId, 'vs', position.testValue)
+        }
+
+        const parentCollectionId2 = collectionIds[0]
+        const parentCollectionId2BN = toBN(parentCollectionId2)
+        await predictionMarketSystem.splitPosition(collateralToken.address, parentCollectionId2, conditionsInfo[1].conditionId, partition, 100, { from: trader })
+
+        const collectionIds2 = partition.map(indexSet => toHex(toBN(soliditySha3(
+            { type: 'bytes32', value: conditionsInfo[1].conditionId },
+            { type: 'uint', value: indexSet },
+        )).add(parentCollectionId2BN).maskn(256)))
+
+        const positionIds2 = collectionIds2.map(collectionId => soliditySha3(
+            { type: 'address', value: collateralToken.address },
+            { type: 'bytes32', value: collectionId },
+        ))
+
+        await waitForGraphSync()
+
+        for(const collectionId of collectionIds2) {
+            const { collection } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
+                query: `{
+                    collection(id: "${collectionId}") {
+                        id
+                        testValue
+                    }
+                }`,
+            })).data.data
+            assert(collection, `collection ${collectionId} not found`)
+            console.log(collectionId, 'vs', collection.testValue)
+        }
+
+        for(const positionId of positionIds2) {
             assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100)
             const { position } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
                 query: `{

@@ -38,7 +38,7 @@ export function handlePositionSplit(event: PositionSplit): void {
       if (collection == null) {
         collection = new Collection(collectionId.toHex())
       }
-      collection.testValue = toCollectionId(params.conditionId, partition[i]);
+      collection.testValue = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
       collection.save()
       
       let positionId = contract.getPositionId(params.collateralToken, collectionId);
@@ -111,6 +111,29 @@ function toPositionId(collateralToken: Address, collectionId: Bytes): Bytes {
     hashPayload[i + 20] = collectionId[i]
   }
   return crypto.keccak256(hashPayload as Bytes) as Bytes
+}
+
+function add256(a: Bytes, b: Bytes): Bytes {
+  let aBigInt = new Uint8Array(32) as BigInt
+  let bBigInt = new Uint8Array(32) as BigInt
+
+  aBigInt.fill(0)
+  for(let i = 0; i < a.length && i < 32; i++) {
+    aBigInt[i] = a[a.length - 1 - i]
+  }
+
+  bBigInt.fill(0)
+  for(let i = 0; i < b.length && i < 32; i++) {
+    bBigInt[i] = b[b.length - 1 - i]
+  }
+
+  let sumBigInt = aBigInt + bBigInt
+  let sum = new Uint8Array(32) as Bytes
+  for(let i = 0; i < sumBigInt.length && i < 32; i++) {
+    sum[31 - i] = sumBigInt[i]
+  }
+
+  return sum
 }
 
 function getPartition(partitions: BigInt[], index: i32): BigInt {
