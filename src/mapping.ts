@@ -27,50 +27,29 @@ export function handleConditionResolution(event: ConditionResolution): void {
 }
 
 export function handlePositionSplit(event: PositionSplit): void {
-    let params = event.params
-    let partition = params.partition
+  let params = event.params
+  let partition = params.partition
 
-    for (let i=0; i<partition.length; i++) {
-      let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
-      let collection = Collection.load(collectionId.toHex())
-      if (collection == null) {
-        collection = new Collection(collectionId.toHex())
-        collection.save()
-      }
-      
-      let positionId = toPositionId(params.collateralToken, collectionId)
-      let position = Position.load(positionId.toHex())
-      if (position == null) {
-        position = new Position(positionId.toHex())
-        position.collateralToken = params.collateralToken
-        position.save()
-      }
-    }
-}
-
-export function handlePositionsMerge(event: PositionsMerge): void {
-  let contract = PredictionMarketSystem.bind(event.address)
-
-  for (let i=0; i<event.params.partition.length; i++) {
- 
-    let collectionId = contract.getCollectionId(event.params.parentCollectionId, event.params.conditionId, getPartition(event.params.partition, i));
+  for (let i=0; i<partition.length; i++) {
+    let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
     let collection = Collection.load(collectionId.toHex())
     if (collection == null) {
       collection = new Collection(collectionId.toHex())
+      collection.save()
     }
-    collection.save()
     
-    let positionId = contract.getPositionId(event.params.collateralToken, collectionId);
+    let positionId = toPositionId(params.collateralToken, collectionId)
     let position = Position.load(positionId.toHex())
     if (position == null) {
       position = new Position(positionId.toHex())
+      position.collateralToken = params.collateralToken
+      position.save()
     }
-    position.collateralToken = event.params.collateralToken
-    position.save()
   }
+}
 
-  let condition = Condition.load(event.params.conditionId.toHex())
-  condition.save()
+export function handlePositionsMerge(event: PositionsMerge): void {
+  // stub
 }
 
 // Helper functions (mandated by AssemblyScript for memory issues)
@@ -127,14 +106,4 @@ function add256(a: Bytes, b: Bytes): Bytes {
   }
 
   return sum
-}
-
-function getPartition(partitions: BigInt[], index: i32): BigInt {
-  let result: BigInt = partitions[index];
-  return result;
-}
-
-function getPosition(collateralToken: Bytes, collection: Bytes): Bytes {
-  let output: Bytes = collateralToken + collection
-  return output
 }
