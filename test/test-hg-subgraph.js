@@ -101,7 +101,7 @@ describe('hg-subgraph', function() {
 
     it('will collect info from splitting and merging positions', async () => {
         const [creator, oracle, trader] = accounts
-        const conditionsInfo = Array.from({ length: 3 }, () => {
+        const conditionsInfo = Array.from({ length: 2 }, () => {
             const questionId = randomHex(32)
             const outcomeSlotCount = 68
             const conditionId = soliditySha3(
@@ -137,30 +137,37 @@ describe('hg-subgraph', function() {
 
         await waitForGraphSync()
 
-        for(const collectionId of collectionIds) {
+        for(const [collectionId, indexSet] of collectionIds.map((c, i) => [c, partition[i]])) {
             const { collection } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
                 query: `{
                     collection(id: "${collectionId}") {
                         id
+                        conditions { id }
+                        indexSets
                     }
                 }`,
             })).data.data
             assert(collection, `collection ${collectionId} not found`)
+            assert.equal(collection.conditions.length, collection.indexSets.length)
+            assert.equal(collection.conditions.length, 1)
+            assert.equal(collection.conditions[0].id, conditionsInfo[0].conditionId)
+            assert.equal(collection.indexSets[0], toBN(indexSet).toString())
         }
 
-        for(const positionId of positionIds) {
+        for(const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
             assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100)
             const { position } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
                 query: `{
                     position(id: "${positionId}") {
                         id
                         collateralToken
+                        collection { id }
                     }
                 }`,
             })).data.data
 
             assert(position, `position ${positionId} not found`)
-            assert.equal(position.collateralToken, collateralToken.address.toLowerCase())
+            assert.equal(position.collection.id, collectionId)
         }
 
         const parentCollectionId2 = collectionIds[0]
@@ -179,30 +186,42 @@ describe('hg-subgraph', function() {
 
         await waitForGraphSync()
 
-        for(const collectionId of collectionIds2) {
+        for(const [collectionId, indexSet] of collectionIds2.map((c, i) => [c, partition[i]])) {
             const { collection } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
                 query: `{
                     collection(id: "${collectionId}") {
                         id
+                        conditions { id }
+                        indexSets
                     }
                 }`,
             })).data.data
             assert(collection, `collection ${collectionId} not found`)
+            assert.equal(collection.conditions.length, collection.indexSets.length)
+            assert.equal(collection.conditions.length, 2)
+            const parentIndex = collection.conditions.findIndex(({ id }) => id === conditionsInfo[0].conditionId)
+            assert.notEqual(parentIndex, -1)
+            assert.equal(collection.indexSets[parentIndex], toBN(partition[0]).toString())
+            const cIndex = collection.conditions.findIndex(({ id }) => id === conditionsInfo[1].conditionId)
+            assert.notEqual(cIndex, -1)
+            assert.equal(collection.indexSets[cIndex], toBN(indexSet).toString())
         }
 
-        for(const positionId of positionIds2) {
+        for(const [positionId, collectionId] of positionIds2.map((p, i) => [p, collectionIds2[i]])) {
             assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100)
             const { position } = (await axios.post('http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph', {
                 query: `{
                     position(id: "${positionId}") {
                         id
                         collateralToken
+                        collection { id }
                     }
                 }`,
             })).data.data
 
             assert(position, `position ${positionId} not found`)
             assert.equal(position.collateralToken, collateralToken.address.toLowerCase())
+            assert.equal(position.collection.id, collectionId)
         }
     })
 })
