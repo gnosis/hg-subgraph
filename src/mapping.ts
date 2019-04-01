@@ -12,7 +12,6 @@ export function handleConditionPreparation(event: ConditionPreparation): void {
   condition.createTransaction = event.transaction.hash
   condition.creationTimestamp = event.block.timestamp
   condition.blockNumber = event.block.number
-  condition.totalValue = 0
   condition.save()
 }
 

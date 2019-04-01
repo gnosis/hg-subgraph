@@ -12,7 +12,6 @@ type Condition @entity {
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
   blockNumber: BigInt
-  totalValue: BigInt 
 }
 
 type Position @entity {
