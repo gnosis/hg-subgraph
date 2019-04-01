@@ -27,32 +27,25 @@ export function handleConditionResolution(event: ConditionResolution): void {
 }
 
 export function handlePositionSplit(event: PositionSplit): void {
-    let contract = PredictionMarketSystem.bind(event.address)
-
     let params = event.params
     let partition = params.partition
 
     for (let i=0; i<partition.length; i++) {
-      let collectionId = contract.getCollectionId(params.parentCollectionId, params.conditionId, partition[i]);
+      let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
       let collection = Collection.load(collectionId.toHex())
       if (collection == null) {
         collection = new Collection(collectionId.toHex())
+        collection.save()
       }
-      collection.testValue = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
-      collection.save()
       
-      let positionId = contract.getPositionId(params.collateralToken, collectionId);
+      let positionId = toPositionId(params.collateralToken, collectionId)
       let position = Position.load(positionId.toHex())
       if (position == null) {
         position = new Position(positionId.toHex())
+        position.collateralToken = params.collateralToken
+        position.save()
       }
-      position.testValue = toPositionId(params.collateralToken, collectionId)
-      position.collateralToken = params.collateralToken
-      position.save()
     }
-
-    let condition = Condition.load(params.conditionId.toHex())
-    condition.save()
 }
 
 export function handlePositionsMerge(event: PositionsMerge): void {

@@ -142,12 +142,10 @@ describe('hg-subgraph', function() {
                 query: `{
                     collection(id: "${collectionId}") {
                         id
-                        testValue
                     }
                 }`,
             })).data.data
             assert(collection, `collection ${collectionId} not found`)
-            console.log(collectionId, 'vs', collection.testValue)
         }
 
         for(const positionId of positionIds) {
@@ -157,14 +155,12 @@ describe('hg-subgraph', function() {
                     position(id: "${positionId}") {
                         id
                         collateralToken
-                        testValue
                     }
                 }`,
             })).data.data
 
             assert(position, `position ${positionId} not found`)
             assert.equal(position.collateralToken, collateralToken.address.toLowerCase())
-            console.log(positionId, 'vs', position.testValue)
         }
 
         const parentCollectionId2 = collectionIds[0]
@@ -188,12 +184,10 @@ describe('hg-subgraph', function() {
                 query: `{
                     collection(id: "${collectionId}") {
                         id
-                        testValue
                     }
                 }`,
             })).data.data
             assert(collection, `collection ${collectionId} not found`)
-            console.log(collectionId, 'vs', collection.testValue)
         }
 
         for(const positionId of positionIds2) {
@@ -203,14 +197,12 @@ describe('hg-subgraph', function() {
                     position(id: "${positionId}") {
                         id
                         collateralToken
-                        testValue
                     }
                 }`,
             })).data.data
 
             assert(position, `position ${positionId} not found`)
             assert.equal(position.collateralToken, collateralToken.address.toLowerCase())
-            console.log(positionId, 'vs', position.testValue)
         }
     })
 })
