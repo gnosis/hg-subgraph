@@ -12,6 +12,7 @@ type Condition @entity {
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
   blockNumber: BigInt
+  collections: [Collection!]!
 }
 
 type Position @entity {
@@ -22,6 +23,7 @@ type Position @entity {
 
 type Collection @entity {
   id: ID!
+  # These @Conditions cannot be searched or filtered, while they are part of the @Collection type. Therefore, doubly #linking them to the @Condition may be best.
   conditions: [Condition!]!
   indexSets: [BigInt!]!
 }

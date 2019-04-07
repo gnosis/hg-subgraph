@@ -13,7 +13,7 @@
     "test": "npm run codegen && npm run deploy-local && mocha --exit"
   },
   "devDependencies": {
-    "@gnosis.pm/hg-contracts": "^2.0.5",
+    "@gnosis.pm/hg-contracts": "^0.2.0",
     "@graphprotocol/graph-cli": "^0.7.1",
     "@graphprotocol/graph-ts": "^0.5.0",
     "axios": "^0.18.0",
