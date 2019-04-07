@@ -3,7 +3,7 @@ type Condition @entity {
   creator: Bytes!
   oracle: Bytes!
   questionId: Bytes!
-  outcomeSlotCount: BigInt!
+  outcomeSlotCount: Int!
   resolved: Boolean!
   payoutNumerators: [BigInt!]
   payoutDenominator: BigInt
@@ -12,19 +12,16 @@ type Condition @entity {
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
   blockNumber: BigInt
-  totalValue: BigInt 
 }
 
 type Position @entity {
   id: ID!
-  stakeholder: Bytes!
   collateralToken: Bytes!
-  parentCollectionId: Bytes
-  conditionId: Condition!
-  amount: BigInt
+  collection: Collection!
 }
 
 type Collection @entity {
- id: ID!
- totalValue: BigInt
+  id: ID!
+  conditions: [Condition!]!
+  indexSets: [BigInt!]!
 }
