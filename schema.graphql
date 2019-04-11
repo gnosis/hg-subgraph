@@ -12,18 +12,36 @@ type Condition @entity {
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
   blockNumber: BigInt
-  collections: [Collection!]!
+  collections: [Collection!] @derivedFrom(field: "conditions")
+}
+
+type Collection @entity {
+  id: ID!
+  conditions: [Condition!]!
+  indexSets: [BigInt!]!
 }
 
 type Position @entity {
   id: ID!
   collateralToken: Bytes!
   collection: Collection!
+  # totalValue: BigInt
 }
 
-type Collection @entity {
-  id: ID!
-  # These @Conditions cannot be searched or filtered, while they are part of the @Collection type. Therefore, doubly #linking them to the @Condition may be best.
-  conditions: [Condition!]!
-  indexSets: [BigInt!]!
+type UserPosition @entity {
+ id: ID!
+ position: Position! 
+ balance: BigInt!
+ user: User! 
 }
+
+type User @entity {
+ id: ID!
+ userPositions: [UserPosition!] @derivedFrom(field: "user")
+ # participatedConditions: [Condition!]
+ # firstParticipation: BigInt
+ # lastActive: BigInt
+}
+
+
+

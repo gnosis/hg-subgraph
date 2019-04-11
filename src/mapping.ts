@@ -1,6 +1,6 @@
-import { crypto, Address, BigInt, Bytes } from '@graphprotocol/graph-ts'
-import { ConditionPreparation, ConditionResolution, PositionSplit, PositionsMerge, PredictionMarketSystem } from './types/PredictionMarketSystem/PredictionMarketSystem'
-import { Condition, Collection, Position } from './types/schema'
+import { crypto, Address, BigInt, Bytes, TypedMap } from '@graphprotocol/graph-ts'
+import { ConditionPreparation, ConditionResolution, PositionSplit, PositionsMerge, PredictionMarketSystem, PayoutRedemption, TransferSingle, TransferBatch } from './types/PredictionMarketSystem/PredictionMarketSystem'
+import { Condition, Collection, Position, User, UserPosition } from './types/schema'
 
 export function handleConditionPreparation(event: ConditionPreparation): void {
   let condition = new Condition(event.params.conditionId.toHex())
@@ -93,6 +93,22 @@ export function handlePositionSplit(event: PositionSplit): void {
 
 export function handlePositionsMerge(event: PositionsMerge): void {
   // stub
+
+  // if a user merges a full indexSet to the 0th collectionId, lower their totalvalue by amount 
+
+
+}
+
+export function handlePayoutRedemption(event: PayoutRedemption): void {
+  // stub
+}
+
+export function handleTransferSingle(event: TransferSingle): void {
+  // stub
+}
+
+export function handleTransferBatch(event: TransferBatch): void {
+  // stub
 }
 
 // Helper functions (mandated by AssemblyScript for memory issues)
@@ -143,13 +159,7 @@ function add256(a: Bytes, b: Bytes): Bytes {
   }
 
   let sumBigInt = aBigInt + bBigInt
-  let sum = new Uint8Array(32) as Bytes
-  sum.fill(0)
-  for(let i = 0; i < sumBigInt.length && i < 32; i++) {
-    sum[31 - i] = sumBigInt[i]
-  }
-
-  return sum
+  return bigIntToBytes32(sumBigInt);
 }
 
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
@@ -169,4 +179,13 @@ function isZeroCollectionId(collectionId: Bytes): boolean {
     if(collectionId[i] !== 0)
       return false
   return true
+}
+
+function bigIntToBytes32(bigInt: BigInt): Bytes {
+  let sum = new Uint8Array(32) as Bytes
+  sum.fill(0)
+  for(let i = 0; i < bigInt.length && i < 32; i++) {
+    sum[31 - i] = bigInt[i]
+  }
+  return sum;
 }
