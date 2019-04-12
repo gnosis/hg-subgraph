@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "scripts": {
     "create": "graph create InfiniteStyles/exampleGraph --node https://api.thegraph.com/deploy/",
-    "create-local": "graph create InfiniteStyles/exampleGraph --node http://127.0.0.1:8020",
+    "create-local": "graph create InfiniteStyles/a0x97e88e0d1ce6adf276a2 --node http://127.0.0.1:8020",
     "codegen": "graph codegen --debug --output-dir src/types/",
     "build": "graph build --debug",
     "deploy": "graph deploy InfiniteStyles/pm --debug --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
@@ -17,10 +17,12 @@
     "@graphprotocol/graph-cli": "^0.7.1",
     "@graphprotocol/graph-ts": "^0.5.0",
     "axios": "^0.18.0",
+    "chai": "^4.2.0",
     "delay": "^4.1.0",
     "ganache-cli": "^6.4.1",
     "mocha": "^6.0.2",
-    "openzeppelin-solidity": "^2.2.0"
+    "openzeppelin-solidity": "^2.2.0",
+    "tmp": "^0.1.0"
   },
   "dependencies": {
     "babel-polyfill": "^6.26.0",

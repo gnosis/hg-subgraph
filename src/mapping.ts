@@ -89,6 +89,10 @@ export function handlePositionSplit(event: PositionSplit): void {
       position.save()
     }
   }
+
+  // User Positions Section
+
+  
 }
 
 export function handlePositionsMerge(event: PositionsMerge): void {
