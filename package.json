@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "scripts": {
     "create": "graph create InfiniteStyles/exampleGraph --node https://api.thegraph.com/deploy/",
-    "create-local": "graph create InfiniteStyles/a0x97e88e0d1ce6adf276a2 --node http://127.0.0.1:8020",
+    "create-local": "graph create InfiniteStyles/exampleGraph --node http://127.0.0.1:8020",
     "codegen": "graph codegen --debug --output-dir src/types/",
     "build": "graph build --debug",
     "deploy": "graph deploy InfiniteStyles/pm --debug --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
     "deploy-local": "graph deploy InfiniteStyles/exampleGraph --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
     "refresh-abi": "cd node_modules/@gnosis.pm/hg-contracts && truffle compile && cd ../../.. && node abiGenerator.js",
-    "migrate": "cd node_modules/@gnosis.pm/hg-contracts && echo 'module.exports={networks:{ganache:{host:\"localhost\",port:8545,network_id:\"*\"}}}' > truffle-local.js && truffle migrate --network=ganache",
-    "test": "npm run codegen && npm run deploy-local && mocha --exit"
+    "migrate": "cd node_modules/@gnosis.pm/hg-contracts && echo 'module.exports={networks:{ganache:{host:\"localhost\",port:8545,network_id:\"*\"}}}' > truffle-local.js && truffle migrate --network=ganache --reset",
+    "test": "npm run codegen && npm run deploy-local && mocha --exit",
+    "create-deploy-local": "npm run create-local && npm run deploy-local"
   },
   "devDependencies": {
     "@gnosis.pm/hg-contracts": "^0.2.0",

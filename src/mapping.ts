@@ -1,4 +1,4 @@
-import { crypto, Address, BigInt, Bytes, TypedMap } from '@graphprotocol/graph-ts'
+import { crypto, Address, BigInt, Bytes, TypedMap, ByteArray } from '@graphprotocol/graph-ts'
 import { ConditionPreparation, ConditionResolution, PositionSplit, PositionsMerge, PredictionMarketSystem, PayoutRedemption, TransferSingle, TransferBatch } from './types/PredictionMarketSystem/PredictionMarketSystem'
 import { Condition, Collection, Position, User, UserPosition } from './types/schema'
 
@@ -29,9 +29,14 @@ export function handleConditionResolution(event: ConditionResolution): void {
 export function handlePositionSplit(event: PositionSplit): void {
   let params = event.params
   let partition = params.partition
-
   let conditionId = params.conditionId.toHex()
   let condition = Condition.load(conditionId)
+
+  let user = User.load(params.stakeholder.toHex())
+  if (user == null) {
+    user = new User(params.stakeholder.toHex());
+  } 
+  user.save();
 
   let parentIndexSet = sum(partition)
   let parentConditions: Array<String>
@@ -62,37 +67,140 @@ export function handlePositionSplit(event: PositionSplit): void {
     }
   }
 
-  for (let i=0; i<partition.length; i++) {
-    let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
-    let collection = Collection.load(collectionId.toHex())
-    if (collection == null) {
-      collection = new Collection(collectionId.toHex())
-      let conditions = new Array<String>(parentConditions.length + 1)
-      let indexSets = new Array<BigInt>(parentConditions.length + 1)
-      for(let j = 0; j < parentConditions.length; j++) {
-        conditions[j] = parentConditions[j]
-        indexSets[j] = parentIndexSets[j]
+  if (isFullIndexSet(parentIndexSet, condition.outcomeSlotCount)) {
+    if (isZeroCollectionId(params.parentCollectionId)) {
+      for (let i=0; i<partition.length; i++) {
+        let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
+        let collection = Collection.load(collectionId.toHex())
+        if (collection == null) {
+          collection = new Collection(collectionId.toHex())
+          let conditions = new Array<String>(parentConditions.length + 1)
+          let indexSets = new Array<BigInt>(parentConditions.length + 1)
+          for(let j = 0; j < parentConditions.length; j++) {
+            conditions[j] = parentConditions[j]
+            indexSets[j] = parentIndexSets[j]
+          }
+          conditions[parentConditions.length] = conditionId
+          indexSets[parentConditions.length] = partition[i]
+          collection.conditions = conditions
+          collection.indexSets = indexSets
+          collection.save()
+        }
+        let positionId = toPositionId(params.collateralToken, collectionId)
+        let position = Position.load(positionId.toHex())
+        if (position == null) {
+          position = new Position(positionId.toHex())
+          position.collateralToken = params.collateralToken
+          position.collection = collection.id
+          position.save()
+        }
+        // UserPosition Section
+        let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
+        let userPosition = UserPosition.load(userPositionId.toHex());
+        if (userPosition == null) {
+          userPosition = new UserPosition(userPositionId.toHex());
+          userPosition.balance = 0;
+        }
+        userPosition.position = position.id;
+        userPosition.balance += params.amount;
+        userPosition.user = user.id;
+        userPosition.save();
       }
-      conditions[parentConditions.length] = conditionId
-      indexSets[parentConditions.length] = partition[i]
-      collection.conditions = conditions
-      collection.indexSets = indexSets
-      collection.save()
+    } else {
+      for (let i=0; i<partition.length; i++) {
+        let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
+        let collection = Collection.load(collectionId.toHex())
+        if (collection == null) {
+          collection = new Collection(collectionId.toHex())
+          let conditions = new Array<String>(parentConditions.length + 1)
+          let indexSets = new Array<BigInt>(parentConditions.length + 1)
+          for(let j = 0; j < parentConditions.length; j++) {
+            conditions[j] = parentConditions[j]
+            indexSets[j] = parentIndexSets[j]
+          }
+          conditions[parentConditions.length] = conditionId
+          indexSets[parentConditions.length] = partition[i]
+          collection.conditions = conditions
+          collection.indexSets = indexSets
+          collection.save()
+        }
+        let positionId = toPositionId(params.collateralToken, collectionId)
+        let position = Position.load(positionId.toHex())
+        if (position == null) {
+          position = new Position(positionId.toHex())
+          position.collateralToken = params.collateralToken
+          position.collection = collection.id
+          position.save()
+        }
+        // UserPosition Section
+        let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
+        let userPosition = UserPosition.load(userPositionId.toHex());
+        if (userPosition == null) {
+          userPosition = new UserPosition(userPositionId.toHex());
+          userPosition.balance = 0;
+        }
+        userPosition.position = position.id;
+        userPosition.balance += params.amount;
+        userPosition.user = user.id;
+        userPosition.save();
+      }
+      // Subtract from parent positions balance
+      let parentPositionId = toPositionId(params.collateralToken, params.parentCollectionId);
+      let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
+      let parentPosition = UserPosition.load(parentUserPositionId.toHex());
+      parentPosition.balance -= params.amount;
+      parentPosition.save();
     }
-    
-    let positionId = toPositionId(params.collateralToken, collectionId)
-    let position = Position.load(positionId.toHex())
-    if (position == null) {
-      position = new Position(positionId.toHex())
-      position.collateralToken = params.collateralToken
-      position.collection = collection.id
-      position.save()
+  } else {
+    for (let i=0; i<partition.length; i++) {
+      let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
+      let collection = Collection.load(collectionId.toHex())
+      if (collection == null) {
+        collection = new Collection(collectionId.toHex())
+        let conditions = new Array<String>(parentConditions.length + 1)
+        let indexSets = new Array<BigInt>(parentConditions.length + 1)
+        for(let j = 0; j < parentConditions.length; j++) {
+          conditions[j] = parentConditions[j]
+          indexSets[j] = parentIndexSets[j]
+        }
+        conditions[parentConditions.length] = conditionId
+        indexSets[parentConditions.length] = partition[i]
+        collection.conditions = conditions
+        collection.indexSets = indexSets
+        collection.save()
+      }
+      let positionId = toPositionId(params.collateralToken, collectionId)
+      let position = Position.load(positionId.toHex())
+      if (position == null) {
+        position = new Position(positionId.toHex())
+        position.collateralToken = params.collateralToken
+        position.collection = collection.id
+        position.save()
+      }
+        // UserPosition Section
+        let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
+        let userPosition = UserPosition.load(userPositionId.toHex());
+        if (userPosition == null) {
+          userPosition = new UserPosition(userPositionId.toHex());
+          userPosition.balance = 0;
+        }
+        userPosition.position = position.id;
+        userPosition.balance += params.amount;
+        userPosition.user = user.id;
+        userPosition.save();
     }
+    // Subtract from parent positions balance
+    let parentCollectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, parentIndexSet));
+    let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
+    let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
+    let parentPosition = UserPosition.load(parentUserPositionId.toHex());
+    parentPosition.balance -= params.amount;
+    parentPosition.save();
   }
-
+  
   // User Positions Section
 
-  
+
 }
 
 export function handlePositionsMerge(event: PositionsMerge): void {
@@ -122,6 +230,10 @@ function sum(a: BigInt[]): BigInt {
     result = result + a[i]
   }
   return result;
+}
+
+function sumBigInt(a: BigInt, b: BigInt): BigInt {
+  return a.plus(b);
 }
 
 function toCollectionId(conditionId: Bytes, indexSet: BigInt): Bytes {
@@ -166,6 +278,24 @@ function add256(a: Bytes, b: Bytes): Bytes {
   return bigIntToBytes32(sumBigInt);
 }
 
+function subtract256(a: Bytes, b: Bytes): Bytes {
+  let aBigInt = new Uint8Array(32) as BigInt
+  let bBigInt = new Uint8Array(32) as BigInt
+
+  aBigInt.fill(0)
+  for(let i = 0; i < a.length && i < 32; i++) {
+    aBigInt[i] = a[a.length - 1 - i]
+  }
+
+  bBigInt.fill(0)
+  for(let i = 0; i < b.length && i < 32; i++) {
+    bBigInt[i] = b[b.length - 1 - i]
+  }
+
+  let sumBigInt = aBigInt - bBigInt
+  return bigIntToBytes32(sumBigInt);
+}
+
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
   for(let i = 0; i < indexSet.length && 8 * i < outcomeSlotCount; i++) {
     let bitsLeft = outcomeSlotCount - 8 * i
@@ -192,4 +322,15 @@ function bigIntToBytes32(bigInt: BigInt): Bytes {
     sum[31 - i] = bigInt[i]
   }
   return sum;
+}
+
+function concat(a: ByteArray, b: ByteArray): ByteArray {
+  let out = new Uint8Array(a.length + b.length);
+  for (let i = 0; i < a.length; i++) {
+    out[i] = a[i];
+  }
+  for (let j = 0; j < b.length; j++) {
+    out[a.length + j] = b[j];
+  }
+  return out as ByteArray;
 }
