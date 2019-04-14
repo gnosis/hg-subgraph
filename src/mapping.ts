@@ -35,8 +35,8 @@ export function handlePositionSplit(event: PositionSplit): void {
   let user = User.load(params.stakeholder.toHex())
   if (user == null) {
     user = new User(params.stakeholder.toHex());
+    user.save();
   } 
-  user.save();
 
   let parentIndexSet = sum(partition)
   let parentConditions: Array<String>
@@ -69,6 +69,7 @@ export function handlePositionSplit(event: PositionSplit): void {
 
   if (isFullIndexSet(parentIndexSet, condition.outcomeSlotCount)) {
     if (isZeroCollectionId(params.parentCollectionId)) {
+      // This branch covers a full splitPosition without a parentCollectionId
       for (let i=0; i<partition.length; i++) {
         let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
         let collection = Collection.load(collectionId.toHex())
@@ -100,12 +101,13 @@ export function handlePositionSplit(event: PositionSplit): void {
         if (userPosition == null) {
           userPosition = new UserPosition(userPositionId.toHex());
           userPosition.balance = 0;
+          userPosition.user = user.id;
+          userPosition.position = position.id;
         }
-        userPosition.position = position.id;
         userPosition.balance += params.amount;
-        userPosition.user = user.id;
         userPosition.save();
       }
+    // This branch covers a full splitPosition with a parentCollectionId
     } else {
       for (let i=0; i<partition.length; i++) {
         let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
@@ -138,10 +140,10 @@ export function handlePositionSplit(event: PositionSplit): void {
         if (userPosition == null) {
           userPosition = new UserPosition(userPositionId.toHex());
           userPosition.balance = 0;
+          userPosition.position = position.id;
+          userPosition.user = user.id;
         }
-        userPosition.position = position.id;
         userPosition.balance += params.amount;
-        userPosition.user = user.id;
         userPosition.save();
       }
       // Subtract from parent positions balance
@@ -151,6 +153,7 @@ export function handlePositionSplit(event: PositionSplit): void {
       parentPosition.balance -= params.amount;
       parentPosition.save();
     }
+  // This branch covers a non-full indexSet, which has to have a parentId (?)
   } else {
     for (let i=0; i<partition.length; i++) {
       let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]))
@@ -177,17 +180,17 @@ export function handlePositionSplit(event: PositionSplit): void {
         position.collection = collection.id
         position.save()
       }
-        // UserPosition Section
-        let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
-        let userPosition = UserPosition.load(userPositionId.toHex());
-        if (userPosition == null) {
-          userPosition = new UserPosition(userPositionId.toHex());
-          userPosition.balance = 0;
-        }
+      // UserPosition Section
+      let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
+      let userPosition = UserPosition.load(userPositionId.toHex());
+      if (userPosition == null) {
+        userPosition = new UserPosition(userPositionId.toHex());
+        userPosition.balance = 0;
         userPosition.position = position.id;
-        userPosition.balance += params.amount;
         userPosition.user = user.id;
-        userPosition.save();
+      }
+      userPosition.balance += params.amount;
+      userPosition.save();
     }
     // Subtract from parent positions balance
     let parentCollectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, parentIndexSet));
@@ -197,18 +200,101 @@ export function handlePositionSplit(event: PositionSplit): void {
     parentPosition.balance -= params.amount;
     parentPosition.save();
   }
-  
-  // User Positions Section
-
-
 }
 
 export function handlePositionsMerge(event: PositionsMerge): void {
-  // stub
+  // let params = event.params
+  // let partition = params.partition
+  // let conditionId = params.conditionId.toHex()
+  // let condition = Condition.load(conditionId)
 
-  // if a user merges a full indexSet to the 0th collectionId, lower their totalvalue by amount 
+  // let user = User.load(params.stakeholder.toHex())
+  // if (user == null) {
+  //   user = new User(params.stakeholder.toHex());
+  //   user.save();
+  // } 
+  // let totalIndexSet = sum(partition);
 
+  // if(isFullIndexSet(totalIndexSet, condition.outcomeSlotCount)) {
+  //   if(isZeroCollectionId(params.parentCollectionId)) {
+  //     // If it's a full indexset without a parent collection 
+  //       // just lower the balance for each position
+  //       for (var i=0; i< partition.length; i++) {
+  //         let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
+  //         let positionId = toPositionId(params.collateralToken, collectionId);
+  //         let userPositionId = concat(params.stakeholder, positionId) as Bytes;
+  //         let userPosition = UserPosition.load(userPositionId.toHex());
+  //         userPosition.balance -= params.amount;
+  //         userPosition.save();
+  //       }
+  //   } else {
+  //     // If it's a full indexset with a parent collection
+  //       // lower the balance for each position
+  //       for (var j=0; j< partition.length; j++) {
+  //         let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
+  //         let positionId = toPositionId(params.collateralToken, collectionId);
+  //         let userPositionId = concat(params.stakeholder, positionId) as Bytes;
+  //         let userPosition = UserPosition.load(userPositionId.toHex());
+  //         userPosition.balance -= params.amount;
+  //         userPosition.save();
+  //       }
+  //       // increase the balance for the parentCollection
+  //       let parentCollectionId = params.parentCollectionId;
+  //       let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
+  //       let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
+  //       let parentPosition = UserPosition.load(parentUserPositionId.toHex());
+  //       parentPosition.balance += params.amount;
+  //       parentPosition.save();
+  //   }
+  // } else {
+  //   // get the positionID of the union of indexsets
+  //   let totalIndexSetCollectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, totalIndexSet));
+  //     // maybe create a new Collection here
+  //   let totalIndexSetPositionId = toPositionId(params.collateralToken, totalIndexSetCollectionId);
+  //     // maybe create a new position here 
+  //     let position = Position.load(/* union positionId */);
+  //     if (position == null) {
+  //       position = new Position(/* unionPositionId */))
+  //         // get collectionId = (positionId - collateralToken)
+  //           // let collection = create new Collection(/* collectionId */)
+  //             // add Conditions to this collection
+  //             // add indexSets to this collection
+  //         )
+  //       // position.collection = collectionId
+  //       position.collateralToken = params.collateralToken;
 
+  //     }
+  //     position.save();
+      
+  //     // lower the balance of each partition position (these positions will already be in the system)
+  //     for (var j=0; j< partition.length; j++) {
+  //       let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
+  //       let positionId = toPositionId(params.collateralToken, collectionId);
+  //       let userPositionId = concat(params.stakeholder, positionId) as Bytes;
+  //       let userPosition = UserPosition.load(userPositionId.toHex());
+  //       if (userPosition = null) {
+  //         userPosition = new UserPosition(userPositionId.toHex());
+  //         userPosition.user = params.stakeholder;
+  //         userPosition.position = Position.load(positionId); // Position() should be created above          
+  //       }
+  //       userPosition.balance -= params.amount;
+  //       userPosition.save();
+  //     }
+  //     let unionPositionId = toPositionId(params.collateralToken, toCollectionId(conditionId, totalIndexSet));
+  //     let unionUserPositionId = concat(params.stakeholder, unionPositionId) as Bytes;
+  //     let unionUserPosition = UserPosition.load(unionUserPositionId);
+  //     if (UserPosition == null) {
+  //       userUnionPositionId = new UserPosition(unionUserPositionId);
+  //       userUnionPositionId.user = User.load(params.stakeholder.toHex());
+  //       userUnionPositionId.position = Position.load(unionPositionId)
+  //       if (userUnionPositionId.position == null) {
+  //         let unionPosition = new Position(unionPositionId.toHex());
+  //         unionPosition.collateralToken = params.collateralToken;  
+  //         // create unionPosition Collections
+  //       }
+  //     }
+  //   }
+  // }
 }
 
 export function handlePayoutRedemption(event: PayoutRedemption): void {
@@ -216,11 +302,58 @@ export function handlePayoutRedemption(event: PayoutRedemption): void {
 }
 
 export function handleTransferSingle(event: TransferSingle): void {
-  // stub
+  let params = event.params;
+  // if you're doing a transfer the position should already be in the system
+    // the UserPosition of the _from address should already be in the system
+  let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id));
+  let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
+  _fromUserPosition.balance -= params._value;
+  _fromUserPosition.save();
+
+  // The _to UserPosition doesn't have to be in the system
+  let _toUser = User.load(params._to.toHex());
+  if (_toUser == null) {
+    _toUser = new User(params._to.toHex());
+  }
+  let _toUserPositionId = concat(params._to, bigIntToBytes32(params._id)) as Bytes;
+  let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
+  if (_toUserPosition  == null) {
+    _toUserPosition = new UserPosition(_toUserPositionId.toHex());
+    _toUserPosition.user = _toUser.id;
+    _toUserPosition.balance = 0;
+    let position = Position.load(params._id.toHex());
+    _toUserPosition.position = position.id;
+  } 
+  _toUserPosition.balance += params._value;
+  _toUserPosition.save();
 }
 
 export function handleTransferBatch(event: TransferBatch): void {
-  // stub
+  // let params = event.params;
+
+  // for (var i=0; i < params._ids.length; i++) {
+  //   // if you're doing a transfer the position should already be in the system
+  //   // the UserPosition of the _from address should already be in the system
+  //   let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id[i]));
+  //   let _fromUserPosition = Position.load(_fromUserPositionId.toHex());
+  //   _fromUserPosition.balance -= params._values[i];
+  //   _fromUserPosition.save();
+
+  //   // The _to UserPosition doesn't have to be in the system
+  //   let _toUserPositionId = concat(params._to, params._id[i]);
+  //   let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
+  //   if (_toUserPosition  == null) {
+  //     _toUserPosition = new UserPosition(_toUserPositionId.toHex());
+  //     _toUserPosition.user = User.load(params._to.toHex());
+  //     if (_toUserPosition.user == null) {
+  //       _toUserPosition.user = new User(params._to.toHex());
+  //     }
+  //     _toUserPosition.position = Position.load(params._ids[i].toHex()).id;
+  //     _toUserPosition.balance = 0;
+  //   } 
+  //   _toUserPosition.balance += params._values[i];
+  //   _toUserPosition.save();
+  // }
 }
 
 // Helper functions (mandated by AssemblyScript for memory issues)
@@ -275,24 +408,6 @@ function add256(a: Bytes, b: Bytes): Bytes {
   }
 
   let sumBigInt = aBigInt + bBigInt
-  return bigIntToBytes32(sumBigInt);
-}
-
-function subtract256(a: Bytes, b: Bytes): Bytes {
-  let aBigInt = new Uint8Array(32) as BigInt
-  let bBigInt = new Uint8Array(32) as BigInt
-
-  aBigInt.fill(0)
-  for(let i = 0; i < a.length && i < 32; i++) {
-    aBigInt[i] = a[a.length - 1 - i]
-  }
-
-  bBigInt.fill(0)
-  for(let i = 0; i < b.length && i < 32; i++) {
-    bBigInt[i] = b[b.length - 1 - i]
-  }
-
-  let sumBigInt = aBigInt - bBigInt
   return bigIntToBytes32(sumBigInt);
 }
 
