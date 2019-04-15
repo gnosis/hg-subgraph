@@ -305,7 +305,7 @@ export function handleTransferSingle(event: TransferSingle): void {
   let params = event.params;
   // if you're doing a transfer the position should already be in the system
     // the UserPosition of the _from address should already be in the system
-  let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id));
+  let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id)) as Bytes;
   let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
   _fromUserPosition.balance -= params._value;
   _fromUserPosition.save();
@@ -314,7 +314,9 @@ export function handleTransferSingle(event: TransferSingle): void {
   let _toUser = User.load(params._to.toHex());
   if (_toUser == null) {
     _toUser = new User(params._to.toHex());
+    _toUser.save();
   }
+
   let _toUserPositionId = concat(params._to, bigIntToBytes32(params._id)) as Bytes;
   let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
   if (_toUserPosition  == null) {
@@ -335,23 +337,25 @@ export function handleTransferBatch(event: TransferBatch): void {
   if (_toUser == null) {
     _toUser = new User(params._to.toHex());
   }
+
+  // copies of variables for AssemblyScript memory issues 
   let _positionIds = params._ids;
   let _values = params._values;
   let copyPositionIds = new Array<BigInt>(params._ids.length);
   let copyValues = new Array<BigInt>(params._values.length);
   
+  // if you're doing a transfer the position should already be in the system
+  // the UserPosition of the _from address should likewise already be in the system
   for (var i=0; i < params._ids.length; i++) {
     copyPositionIds[i] = _positionIds[i];
     copyValues[i] = _values[i];
-    // if you're doing a transfer the position should already be in the system
-    // the UserPosition of the _from address should already be in the system
     let bytesPositionId = bigIntToBytes32(copyPositionIds[i]);
-    let _fromUserPositionId = concat(params._from, bytesPositionId);
+    let _fromUserPositionId = concat(params._from, bytesPositionId) as Bytes;
     let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
     _fromUserPosition.balance -= copyValues[i];
     _fromUserPosition.save();
 
-    let _toUserPositionId = concat(params._to, bigIntToBytes32(copyPositionIds[i]));
+    let _toUserPositionId = concat(params._to, bigIntToBytes32(copyPositionIds[i])) as Bytes;
     let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
     if (_toUserPosition  == null) {
       _toUserPosition = new UserPosition(_toUserPositionId.toHex());
