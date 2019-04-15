@@ -329,31 +329,40 @@ export function handleTransferSingle(event: TransferSingle): void {
 }
 
 export function handleTransferBatch(event: TransferBatch): void {
-  // let params = event.params;
+  let params = event.params;
+  // The _to UserPosition doesn't have to be in the system
+  let _toUser = User.load(params._to.toHex());
+  if (_toUser == null) {
+    _toUser = new User(params._to.toHex());
+  }
+  let _positionIds = params._ids;
+  let _values = params._values;
+  let copyPositionIds = new Array<BigInt>(params._ids.length);
+  let copyValues = new Array<BigInt>(params._values.length);
+  
+  for (var i=0; i < params._ids.length; i++) {
+    copyPositionIds[i] = _positionIds[i];
+    copyValues[i] = _values[i];
+    // if you're doing a transfer the position should already be in the system
+    // the UserPosition of the _from address should already be in the system
+    let bytesPositionId = bigIntToBytes32(copyPositionIds[i]);
+    let _fromUserPositionId = concat(params._from, bytesPositionId);
+    let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
+    _fromUserPosition.balance -= copyValues[i];
+    _fromUserPosition.save();
 
-  // for (var i=0; i < params._ids.length; i++) {
-  //   // if you're doing a transfer the position should already be in the system
-  //   // the UserPosition of the _from address should already be in the system
-  //   let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id[i]));
-  //   let _fromUserPosition = Position.load(_fromUserPositionId.toHex());
-  //   _fromUserPosition.balance -= params._values[i];
-  //   _fromUserPosition.save();
-
-  //   // The _to UserPosition doesn't have to be in the system
-  //   let _toUserPositionId = concat(params._to, params._id[i]);
-  //   let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
-  //   if (_toUserPosition  == null) {
-  //     _toUserPosition = new UserPosition(_toUserPositionId.toHex());
-  //     _toUserPosition.user = User.load(params._to.toHex());
-  //     if (_toUserPosition.user == null) {
-  //       _toUserPosition.user = new User(params._to.toHex());
-  //     }
-  //     _toUserPosition.position = Position.load(params._ids[i].toHex()).id;
-  //     _toUserPosition.balance = 0;
-  //   } 
-  //   _toUserPosition.balance += params._values[i];
-  //   _toUserPosition.save();
-  // }
+    let _toUserPositionId = concat(params._to, bigIntToBytes32(copyPositionIds[i]));
+    let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
+    if (_toUserPosition  == null) {
+      _toUserPosition = new UserPosition(_toUserPositionId.toHex());
+      _toUserPosition.user = _toUser.id;
+      let position = Position.load(copyPositionIds[i].toHex());
+      _toUserPosition.position = position.id;
+      _toUserPosition.balance = 0;
+    } 
+    _toUserPosition.balance += copyValues[i];
+    _toUserPosition.save();
+  }
 }
 
 // Helper functions (mandated by AssemblyScript for memory issues)
