@@ -30,9 +30,9 @@ type Position @entity {
 
 type UserPosition @entity {
  id: ID!
- position: Position! 
+ position: Position 
  balance: BigInt!
- user: User! 
+ user: User
 }
 
 type User @entity {

@@ -40,7 +40,7 @@ async function waitForGraphSync(targetBlockNumber) {
 }
 
 describe('hg-subgraph', function() {
-    this.timeout(5000)
+    this.timeout(10000)
     let accounts, predictionMarketSystem, collateralToken, minter, globalConditionId, globalConditionId2;
 
     before(async function() {
@@ -69,7 +69,7 @@ describe('hg-subgraph', function() {
         await waitForGraphSync()
     })
 
-    it("Should keep a user position properly upon split", async () => {
+    it("Should keep track of UserPositions and Users properly", async () => {
       const [creator, oracle, trader, trader2, newbie] = accounts
       await collateralToken.mint(trader, 100, { from: minter })
       assert.equal(await collateralToken.balanceOf(trader), 100)
@@ -112,7 +112,7 @@ describe('hg-subgraph', function() {
       const collectionIds2 = partition.map(indexSet => toHex(toBN(soliditySha3(
         { type: 'bytes32', value: globalConditionId2 },
         { type: 'uint', value: indexSet },
-      )).add(toBN(collectionToSplitOn)).maskn(256)))
+      )).add(toBN(collectionToSplitOn)).maskn(256)));
 
       const positionIds2 = collectionIds2.map(collectionId => soliditySha3(
         { type: 'address', value: collateralToken.address },
@@ -132,77 +132,93 @@ describe('hg-subgraph', function() {
         assert.equal(positionGraphData.position.id, positionId);
         assert.equal(positionGraphData.user.id, trader.toLowerCase());
       }
-    // // verify that parentPosition is -25 
-    const parentPositionFromSplit = soliditySha3( 
-        { type: 'address', value: collateralToken.address},
-        { type: 'bytes32', value: collectionToSplitOn }
-    )
-    assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionFromSplit), 25);
-    const parentPositionFromSplitUserPosition = (trader + parentPositionFromSplit.slice(2)).toLowerCase();
-    let splitPositionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
-        query: `{userPositions(where: {id: "${parentPositionFromSplitUserPosition}"}) {balance position { id } user { id }}}`,
-    })).data.data.userPositions[0];    
-    assert.equal(splitPositionGraphData.balance, 25);
-    
-    // split a position from a different position on the same condition --> make sure split subtracts correctly from the parentIndex and adds to the appropriate list of new indexes, make sure split doesn't add to the full index set
-
-    // split 6 into 4 and 2
-    const partition2 = ['4', '2'];
-    const sixPositionId = positionIds[0];
-
-    await predictionMarketSystem.splitPosition(collateralToken.address, "0x00", globalConditionId, partition2, 5, { from: trader })
-    await waitForGraphSync()
-    assert.equal(await predictionMarketSystem.balanceOf(trader, sixPositionId), 20);
-
-    const collectionIds3 = partition2.map(indexSet => {
-        return toHex(toBN(soliditySha3(
-            { type: 'bytes32', value: globalConditionId },
-            { type: 'uint', value: indexSet }
-        )))
-    });
-
-    const positionIds3 = collectionIds3.map(collectionId => {
-        return soliditySha3(
-            { type: 'address', value: collateralToken.address },
-            { type: 'bytes32', value: collectionId }
+        // // verify that parentPosition is -25 
+        const parentPositionFromSplit = soliditySha3( 
+            { type: 'address', value: collateralToken.address},
+            { type: 'bytes32', value: collectionToSplitOn }
         )
-    });
+        assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionFromSplit), 25);
+        const parentPositionFromSplitUserPosition = (trader + parentPositionFromSplit.slice(2)).toLowerCase();
+        let splitPositionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+            query: `{userPositions(where: {id: "${parentPositionFromSplitUserPosition}"}) {balance position { id } user { id }}}`,
+        })).data.data.userPositions[0];    
+        assert.equal(splitPositionGraphData.balance, 25);
+        
+        // split a position from a different position on the same condition --> make sure split subtracts correctly from the parentIndex and adds to the appropriate list of new indexes, make sure split doesn't add to the full index set
 
-    for(const [positionId, collectionId] of positionIds3.map((position, index) => [position, collectionIds3[index]])) {
-        assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 5);
-        const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-        // console.log('PositionId: ', positionId);
-		// console.log("TCL: userPositionId", userPositionId, 'typeof: ' , typeof userPositionId);
+        // split 6 into 4 and 2
+        const partition2 = ['4', '2'];
+        const sixPositionId = positionIds[0];
+
+        await predictionMarketSystem.splitPosition(collateralToken.address, "0x00", globalConditionId, partition2, 5, { from: trader })
+        await waitForGraphSync()
+        assert.equal(await predictionMarketSystem.balanceOf(trader, sixPositionId), 20);
+
+        const collectionIds3 = partition2.map(indexSet => {
+            return toHex(toBN(soliditySha3(
+                { type: 'bytes32', value: globalConditionId },
+                { type: 'uint', value: indexSet }
+            )))
+        });
+
+        const positionIds3 = collectionIds3.map(collectionId => {
+            return soliditySha3(
+                { type: 'address', value: collateralToken.address },
+                { type: 'bytes32', value: collectionId }
+            )
+        });
+
+        for(const [positionId, collectionId] of positionIds3.map((position, index) => [position, collectionIds3[index]])) {
+            assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 5);
+            const userPositionId = (trader + positionId.slice(2)).toLowerCase();
+            // console.log('PositionId: ', positionId);
+            // console.log("TCL: userPositionId", userPositionId, 'typeof: ' , typeof userPositionId);
+            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+                query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
+            })).data.data.userPositions[0];
+            assert.equal(positionGraphData.balance, 5);
+            assert.equal(positionGraphData.position.id, positionId);
+            assert.equal(positionGraphData.user.id, trader.toLowerCase());
+        }
+        const sixUserPositionId = (trader + sixPositionId.slice(2)).toLowerCase();
         let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
-            query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
+            query: `{userPositions(where: {id: "${sixUserPositionId}"}) {balance position { id } user { id }}}`,
         })).data.data.userPositions[0];
-        assert.equal(positionGraphData.balance, 5);
-        assert.equal(positionGraphData.position.id, positionId);
-        assert.equal(positionGraphData.user.id, trader.toLowerCase());
-    }
-    const sixUserPositionId = (trader + sixPositionId.slice(2)).toLowerCase();
-    let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
-        query: `{userPositions(where: {id: "${sixUserPositionId}"}) {balance position { id } user { id }}}`,
-    })).data.data.userPositions[0];
-    assert.equal(positionGraphData.balance, 20);
+        assert.equal(positionGraphData.balance, 20);
+
+        // TESTS FOR TRADING POSITIONS
+        await predictionMarketSystem.safeTransferFrom(trader, trader2, sixPositionId, 10, "0x00", { from: trader });
+        await waitForGraphSync();
+
+        assert.equal(await predictionMarketSystem.balanceOf(trader2, sixPositionId), 10);
+
+        // assert that a new UserPosition and User have been created for trader2
+        const trader2UserPositionId = (trader2 + sixPositionId.slice(2)).toLowerCase();
+        let trader2UserPositionData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+            query: `{userPositions(where: {id: "${trader2UserPositionId}"}) {balance position { id } user { id }}}`,
+        })).data.data.userPositions[0];        
+        assert.equal(await predictionMarketSystem.balanceOf(trader2, sixPositionId), 10);
+        assert.equal(await predictionMarketSystem.balanceOf(trader, sixPositionId), 10);
+        assert.equal(trader2UserPositionData.position.id.toLowerCase(), sixPositionId);
+        assert.equal(trader2UserPositionData.balance, 10);
+        assert.equal(trader2UserPositionData.user.id, trader2.toLowerCase());
+
+        // // TESTS FOR BATCH TRADING OF DIFFERENT OUTCOME TOKENS
+        const positionIds4 = positionIds2.slice();
+        await predictionMarketSystem.safeBatchTransferFrom(trader, trader2, positionIds4, Array.from({ length: positionIds4.length}, () => 5), "0x00", { from: trader });
+        await waitForGraphSync();
+
+
+        for (const [positionId, collectionId] of positionIds4.map((position, i) => [position, collectionIds2[i]])) {
+            const userPositionId = (trader2 + positionId.slice(2)).toLowerCase();
+            let batchTransferUserPositionsData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+                query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
+            })).data.data.userPositions[0]; 
+            assert.equal(await predictionMarketSystem.balanceOf(trader2, positionId), 5);
+            assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 20);
+            assert.equal(batchTransferUserPositionsData.balance, 5)
+            assert.equal(batchTransferUserPositionsData.position.id.toLowerCase(), positionId);
+            assert.equal(batchTransferUserPositionsData.user.id, trader2.toLowerCase());
+        }
     });
-    
-    it("Should keep a User Positions after a TransferSingle", async () => {
-        // transferSingle should subtract the position from the sender, and add that value to the receivers position
-
-    });
-
-    it("Should keep track of user positions after a TransferBatch", async () => {
-
-    });
-
-    it("Should keep a User Position properly after a mergePositions", async () => {
-
-    });
-
-    it("Should keep a User Position properly after a redeemPositionss", async () => {
-
-    });
-
-
   });

@@ -305,6 +305,7 @@ export function handleTransferSingle(event: TransferSingle): void {
   let params = event.params;
   // if you're doing a transfer the position should already be in the system
     // the UserPosition of the _from address should already be in the system
+  let position = Position.load(params._id.toHex());
   let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id)) as Bytes;
   let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
   _fromUserPosition.balance -= params._value;
@@ -323,7 +324,6 @@ export function handleTransferSingle(event: TransferSingle): void {
     _toUserPosition = new UserPosition(_toUserPositionId.toHex());
     _toUserPosition.user = _toUser.id;
     _toUserPosition.balance = 0;
-    let position = Position.load(params._id.toHex());
     _toUserPosition.position = position.id;
   } 
   _toUserPosition.balance += params._value;
