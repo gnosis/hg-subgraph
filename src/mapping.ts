@@ -203,99 +203,114 @@ export function handlePositionSplit(event: PositionSplit): void {
 }
 
 export function handlePositionsMerge(event: PositionsMerge): void {
-  // let params = event.params
-  // let partition = params.partition
-  // let conditionId = params.conditionId.toHex()
-  // let condition = Condition.load(conditionId)
+  let params = event.params
+  let partition = params.partition
+  let conditionId = params.conditionId.toHex()
+  let condition = Condition.load(conditionId)
 
-  // let user = User.load(params.stakeholder.toHex())
-  // if (user == null) {
-  //   user = new User(params.stakeholder.toHex());
-  //   user.save();
-  // } 
-  // let totalIndexSet = sum(partition);
+  let user = User.load(params.stakeholder.toHex())
+  if (user == null) {
+    user = new User(params.stakeholder.toHex());
+    user.save();
+  } 
+  let totalIndexSet = sum(partition);
 
-  // if(isFullIndexSet(totalIndexSet, condition.outcomeSlotCount)) {
-  //   if(isZeroCollectionId(params.parentCollectionId)) {
-  //     // If it's a full indexset without a parent collection 
-  //       // just lower the balance for each position
-  //       for (var i=0; i< partition.length; i++) {
-  //         let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
-  //         let positionId = toPositionId(params.collateralToken, collectionId);
-  //         let userPositionId = concat(params.stakeholder, positionId) as Bytes;
-  //         let userPosition = UserPosition.load(userPositionId.toHex());
-  //         userPosition.balance -= params.amount;
-  //         userPosition.save();
-  //       }
-  //   } else {
-  //     // If it's a full indexset with a parent collection
-  //       // lower the balance for each position
-  //       for (var j=0; j< partition.length; j++) {
-  //         let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
-  //         let positionId = toPositionId(params.collateralToken, collectionId);
-  //         let userPositionId = concat(params.stakeholder, positionId) as Bytes;
-  //         let userPosition = UserPosition.load(userPositionId.toHex());
-  //         userPosition.balance -= params.amount;
-  //         userPosition.save();
-  //       }
-  //       // increase the balance for the parentCollection
-  //       let parentCollectionId = params.parentCollectionId;
-  //       let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
-  //       let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
-  //       let parentPosition = UserPosition.load(parentUserPositionId.toHex());
-  //       parentPosition.balance += params.amount;
-  //       parentPosition.save();
-  //   }
-  // } else {
-  //   // get the positionID of the union of indexsets
-  //   let totalIndexSetCollectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, totalIndexSet));
-  //     // maybe create a new Collection here
-  //   let totalIndexSetPositionId = toPositionId(params.collateralToken, totalIndexSetCollectionId);
-  //     // maybe create a new position here 
-  //     let position = Position.load(/* union positionId */);
-  //     if (position == null) {
-  //       position = new Position(/* unionPositionId */))
-  //         // get collectionId = (positionId - collateralToken)
-  //           // let collection = create new Collection(/* collectionId */)
-  //             // add Conditions to this collection
-  //             // add indexSets to this collection
-  //         )
-  //       // position.collection = collectionId
-  //       position.collateralToken = params.collateralToken;
-
-  //     }
-  //     position.save();
-      
-  //     // lower the balance of each partition position (these positions will already be in the system)
-  //     for (var j=0; j< partition.length; j++) {
-  //       let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
-  //       let positionId = toPositionId(params.collateralToken, collectionId);
-  //       let userPositionId = concat(params.stakeholder, positionId) as Bytes;
-  //       let userPosition = UserPosition.load(userPositionId.toHex());
-  //       if (userPosition = null) {
-  //         userPosition = new UserPosition(userPositionId.toHex());
-  //         userPosition.user = params.stakeholder;
-  //         userPosition.position = Position.load(positionId); // Position() should be created above          
-  //       }
-  //       userPosition.balance -= params.amount;
-  //       userPosition.save();
-  //     }
-  //     let unionPositionId = toPositionId(params.collateralToken, toCollectionId(conditionId, totalIndexSet));
-  //     let unionUserPositionId = concat(params.stakeholder, unionPositionId) as Bytes;
-  //     let unionUserPosition = UserPosition.load(unionUserPositionId);
-  //     if (UserPosition == null) {
-  //       userUnionPositionId = new UserPosition(unionUserPositionId);
-  //       userUnionPositionId.user = User.load(params.stakeholder.toHex());
-  //       userUnionPositionId.position = Position.load(unionPositionId)
-  //       if (userUnionPositionId.position == null) {
-  //         let unionPosition = new Position(unionPositionId.toHex());
-  //         unionPosition.collateralToken = params.collateralToken;  
-  //         // create unionPosition Collections
-  //       }
-  //     }
-  //   }
-  // }
+  if(isFullIndexSet(totalIndexSet, condition.outcomeSlotCount)) {
+    if(isZeroCollectionId(params.parentCollectionId)) {
+      // If it's a full indexset without a parent collection 
+        // just lower the balance for each position
+        for (var i=0; i< partition.length; i++) {
+          let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
+          let positionId = toPositionId(params.collateralToken, collectionId);
+          let userPositionId = concat(params.stakeholder, positionId) as Bytes;
+          let userPosition = UserPosition.load(userPositionId.toHex());
+          userPosition.balance -= params.amount;
+          userPosition.save();
+        }
+    } else {
+      // load or create the parentCollectionId Position
+      let parentCollection = Collection.load(params.parentCollectionId.toHex());
+      if (parentCollection == null) {
+        parentCollection = new Collection("not available");
+        parentCollection.save();
+      }
+      let parentCollectionPositionId = toPositionId(params.collateralToken, params.parentCollectionId);
+      let parentCollectionIdPosition = Position.load(parentCollectionPositionId.toHex());
+      if (parentCollectionIdPosition == null) {
+        parentCollectionIdPosition = new Position(parentCollectionPositionId.toHex());
+        parentCollectionIdPosition.collateralToken = params.collateralToken;
+        parentCollectionIdPosition.collection = parentCollection.id;
+        parentCollectionIdPosition.save();
+      }
+      // If it's a full indexset with a parent collection
+        // lower the balance for each position
+        for (var j=0; j< partition.length; j++) {
+          let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
+          let positionId = toPositionId(params.collateralToken, collectionId);
+          let userPositionId = concat(params.stakeholder, positionId) as Bytes;
+          let userPosition = UserPosition.load(userPositionId.toHex())
+          userPosition.balance -= params.amount;
+          userPosition.save();
+        }
+        // increase the balance for the parentCollection
+        let parentCollectionId = params.parentCollectionId;
+        let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
+        let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
+        let parentUserPosition = UserPosition.load(parentUserPositionId.toHex());
+        if (parentUserPosition == null) {
+          parentUserPosition = new UserPosition(parentUserPositionId.toHex());
+          parentUserPosition.balance = 0;
+          parentUserPosition.position = parentCollectionIdPosition.id;
+          parentUserPosition.user = user.id;
+        }
+        parentUserPosition.balance += params.amount;
+        parentUserPosition.save();
+    }
+  } else {
+    // get the collectionId & positionID of the union of indexsets
+    let totalIndexSetCollectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, totalIndexSet));
+    let totalIndexSetCollection = Collection.load(totalIndexSetCollectionId.toHex());
+    if (totalIndexSetCollection == null) {
+      totalIndexSetCollection = new Collection("not available");
+      totalIndexSetCollection.save();
+    }
+    let totalIndexSetPositionId = toPositionId(params.collateralToken, totalIndexSetCollectionId);
+    let totalIndexSetPosition = Position.load(totalIndexSetPositionId.toHex());
+    if (totalIndexSetPosition == null) {
+      totalIndexSetPosition = new Position(totalIndexSetPositionId.toHex());
+      totalIndexSetPosition.collateralToken = params.collateralToken;
+      totalIndexSetPosition.collection = totalIndexSetCollection.id;
+      totalIndexSetPosition.save();
+    }
+    // lower the balance of each partition UserPosition (these positions will already be in the system)
+    for (var k=0; k< partition.length; k++) {
+      let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));
+      let positionId = toPositionId(params.collateralToken, collectionId);
+      let userPositionId = concat(params.stakeholder, positionId) as Bytes;
+      let userPosition = UserPosition.load(userPositionId.toHex());
+      if (userPosition = null) {
+        userPosition = new UserPosition(userPositionId.toHex());
+        userPosition.user = user.id;
+        userPosition.position = Position.load(positionId.toHex()).id; 
+      }
+      userPosition.balance -= params.amount;
+      userPosition.save();
+    }
+    // increase the balance of the union UserPosition (this UserPosition may not be in the system)
+    let unionPositionId = toPositionId(params.collateralToken, toCollectionId(params.conditionId, totalIndexSet));
+    let unionUserPositionId = concat(params.stakeholder, unionPositionId) as Bytes;
+    let unionUserPosition = UserPosition.load(unionUserPositionId.toHex());
+    if (unionUserPosition == null) {
+      unionUserPosition = new UserPosition(unionUserPositionId.toHex());
+      unionUserPosition.user = user.id;
+      unionUserPosition.position = totalIndexSetPosition.id;
+      unionUserPosition.balance = 0;
+    }
+    unionUserPosition.balance += params.amount;
+    unionUserPosition.save();
+  }
 }
+
 
 export function handlePayoutRedemption(event: PayoutRedemption): void {
   // stub
