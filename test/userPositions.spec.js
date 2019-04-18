@@ -110,16 +110,19 @@ describe('hg-subgraph', function() {
       await waitForGraphSync()
 
       const collectionIds2 = partition.map(indexSet => toHex(toBN(soliditySha3(
-        { type: 'bytes32', value: globalConditionId2 },
-        { type: 'uint', value: indexSet },
+          { type: 'bytes32', value: globalConditionId2 },
+          { type: 'uint', value: indexSet },
       )).add(toBN(collectionToSplitOn)).maskn(256)));
+    //   console.log("TCL: collectionIds2", collectionIds2)
 
       const positionIds2 = collectionIds2.map(collectionId => soliditySha3(
-        { type: 'address', value: collateralToken.address },
-        { type: 'bytes32', value: collectionId },
-      ))
+          { type: 'address', value: collateralToken.address },
+          { type: 'bytes32', value: collectionId },
+          ))
+        // console.log("TCL: positionIds2", positionIds2)
 
       for(const [positionId, collectionId] of positionIds2.map((position, index) => [position, collectionIds2[index]])) {
+        // console.log("TCL: positionId", positionId)
         assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 25);
         // console.log('positionId:', positionId, 'balanceOfTrader: ', await predictionMarketSystem.balanceOf(trader, positionId));
         const userPositionId = (trader + positionId.slice(2)).toLowerCase();

@@ -30,7 +30,7 @@ dataSources:
           handler: handlePositionSplit
         - event: PositionsMerge(address,address,bytes32,bytes32,uint256[],uint256)
           handler: handlePositionsMerge
-        - event: PayoutRedemption(address,address,bytes32,uint256)
+        - event: PayoutRedemption(address,address,bytes32,bytes32,uint256[],uint256)
           handler: handlePayoutRedemption
         - event: TransferSingle(address,address,address,uint256,uint256)
           handler: handleTransferSingle
