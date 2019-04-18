@@ -94,8 +94,10 @@ export function handlePositionSplit(event: PositionSplit): void {
           position = new Position(positionId.toHex())
           position.collateralToken = params.collateralToken
           position.collection = collection.id
-          position.save()
+          position.lifetimeValue = 0;
         }
+        position.lifetimeValue += params.amount;
+        position.save()
         // UserPosition Section
         let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
         let userPosition = UserPosition.load(userPositionId.toHex());
@@ -132,9 +134,11 @@ export function handlePositionSplit(event: PositionSplit): void {
         if (position == null) {
           position = new Position(positionId.toHex())
           position.collateralToken = params.collateralToken
-          position.collection = collection.id
-          position.save()
+          position.collection = collection.id;
+          position.lifetimeValue = 0;
         }
+        position.lifetimeValue += params.amount;
+        position.save()
         // UserPosition Section
         let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
         let userPosition = UserPosition.load(userPositionId.toHex());
@@ -143,6 +147,7 @@ export function handlePositionSplit(event: PositionSplit): void {
           userPosition.balance = 0;
           userPosition.position = position.id;
           userPosition.user = user.id;
+          position.lifetimeValue = 0;
         }
         userPosition.balance += params.amount;
         userPosition.save();
@@ -179,8 +184,10 @@ export function handlePositionSplit(event: PositionSplit): void {
         position = new Position(positionId.toHex())
         position.collateralToken = params.collateralToken
         position.collection = collection.id
-        position.save()
+        position.lifetimeValue = 0;
       }
+      position.lifetimeValue += params.amount;
+      position.save()
       // UserPosition Section
       let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
       let userPosition = UserPosition.load(userPositionId.toHex());
@@ -284,8 +291,10 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       totalIndexSetPosition = new Position(totalIndexSetPositionId.toHex());
       totalIndexSetPosition.collateralToken = params.collateralToken;
       totalIndexSetPosition.collection = totalIndexSetCollection.id;
-      totalIndexSetPosition.save();
+      totalIndexSetPosition.lifetimeValue = 0;
     }
+    totalIndexSetPosition.lifetimeValue += params.amount;
+    totalIndexSetPosition.save();
     // lower the balance of each partition UserPosition (these positions will already be in the system)
     for (var k=0; k< partition.length; k++) {
       let collectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, partition[i]));

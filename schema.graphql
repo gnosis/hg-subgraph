@@ -25,7 +25,8 @@ type Position @entity {
   id: ID!
   collateralToken: Bytes!
   collection: Collection!
-  # totalValue: BigInt
+  activeValue: BigInt
+  lifetimeValue: BigInt
 }
 
 type UserPosition @entity {
@@ -42,6 +43,11 @@ type User @entity {
  # firstParticipation: BigInt
  # lastActive: BigInt
 }
+
+
+# Operators
+
+# Redeemed Collateral
 
 
 
