@@ -2,6 +2,8 @@ import { crypto, Address, BigInt, Bytes, TypedMap, ByteArray } from '@graphproto
 import { ConditionPreparation, ConditionResolution, PositionSplit, PositionsMerge, PredictionMarketSystem, PayoutRedemption, TransferSingle, TransferBatch } from './types/PredictionMarketSystem/PredictionMarketSystem'
 import { Condition, Collection, Position, User, UserPosition } from './types/schema'
 
+let zeroAsBigInt: BigInt = BigInt.fromI32(0);
+
 export function handleConditionPreparation(event: ConditionPreparation): void {
   let condition = new Condition(event.params.conditionId.toHex())
   condition.creator = event.transaction.from
@@ -40,7 +42,7 @@ export function handlePositionSplit(event: PositionSplit): void {
 
   let parentIndexSet = sum(partition)
   let parentConditions: Array<String>
-  let parentIndexSets: Array<BigInt>
+  let parentIndexSets: Array<BigInt>  
 
   if(isFullIndexSet(parentIndexSet, condition.outcomeSlotCount)) {
     if(isZeroCollectionId(params.parentCollectionId)) {
@@ -92,22 +94,22 @@ export function handlePositionSplit(event: PositionSplit): void {
         let position = Position.load(positionId.toHex())
         if (position == null) {
           position = new Position(positionId.toHex())
+          position.lifetimeValue = zeroAsBigInt;
           position.collateralToken = params.collateralToken
           position.collection = collection.id
-          position.lifetimeValue = 0;
         }
-        position.lifetimeValue += params.amount;
+        position.lifetimeValue = position.lifetimeValue.plus(params.amount);
         position.save()
         // UserPosition Section
         let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
         let userPosition = UserPosition.load(userPositionId.toHex());
         if (userPosition == null) {
           userPosition = new UserPosition(userPositionId.toHex());
-          userPosition.balance = 0;
+          userPosition.balance = zeroAsBigInt;
           userPosition.user = user.id;
           userPosition.position = position.id;
         }
-        userPosition.balance += params.amount;
+        userPosition.balance = userPosition.balance.plus(params.amount);
         userPosition.save();
       }
     // This branch covers a full splitPosition with a parentCollectionId
@@ -133,30 +135,29 @@ export function handlePositionSplit(event: PositionSplit): void {
         let position = Position.load(positionId.toHex())
         if (position == null) {
           position = new Position(positionId.toHex())
+          position.lifetimeValue = zeroAsBigInt;
           position.collateralToken = params.collateralToken
           position.collection = collection.id;
-          position.lifetimeValue = 0;
         }
-        position.lifetimeValue += params.amount;
+        position.lifetimeValue = position.lifetimeValue.plus(params.amount);
         position.save()
         // UserPosition Section
         let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
         let userPosition = UserPosition.load(userPositionId.toHex());
         if (userPosition == null) {
           userPosition = new UserPosition(userPositionId.toHex());
-          userPosition.balance = 0;
+          userPosition.balance = zeroAsBigInt;
           userPosition.position = position.id;
           userPosition.user = user.id;
-          position.lifetimeValue = 0;
         }
-        userPosition.balance += params.amount;
+        userPosition.balance = userPosition.balance.plus(params.amount);
         userPosition.save();
       }
       // Subtract from parent positions balance
       let parentPositionId = toPositionId(params.collateralToken, params.parentCollectionId);
       let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
       let parentPosition = UserPosition.load(parentUserPositionId.toHex());
-      parentPosition.balance -= params.amount;
+      parentPosition.balance = parentPosition.balance.minus(params.amount);
       parentPosition.save();
     }
   // This branch covers a non-full indexSet, which has to have a parentId 
@@ -182,31 +183,31 @@ export function handlePositionSplit(event: PositionSplit): void {
       let position = Position.load(positionId.toHex())
       if (position == null) {
         position = new Position(positionId.toHex())
+        position.lifetimeValue = zeroAsBigInt;
         position.collateralToken = params.collateralToken
         position.collection = collection.id
-        position.lifetimeValue = 0;
       }
-      position.lifetimeValue += params.amount;
+      position.lifetimeValue = position.lifetimeValue.plus(params.amount);
       position.save()
       // UserPosition Section
       let userPositionId = concat(params.stakeholder, positionId) as Bytes; 
       let userPosition = UserPosition.load(userPositionId.toHex());
       if (userPosition == null) {
         userPosition = new UserPosition(userPositionId.toHex());
-        userPosition.balance = 0;
+        userPosition.balance = zeroAsBigInt;
         userPosition.position = position.id;
         userPosition.user = user.id;
       }
-      userPosition.balance += params.amount;
+      userPosition.balance = userPosition.balance.plus(params.amount);
       userPosition.save();
     }
     // Subtract from parent positions balance
-    let parentCollectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, parentIndexSet));
+    let parentCollectionId = add256(params.parentCollectionId, toCollectionId(params.conditionId, sum(partition)));
     let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
     let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
-    let parentPosition = UserPosition.load(parentUserPositionId.toHex());
-    parentPosition.balance -= params.amount;
-    parentPosition.save();
+    let parentUserPosition = UserPosition.load(parentUserPositionId.toHex());
+    parentUserPosition.balance = parentUserPosition.balance.minus(params.amount);
+    parentUserPosition.save();
   }
 }
 
@@ -232,7 +233,7 @@ export function handlePositionsMerge(event: PositionsMerge): void {
           let positionId = toPositionId(params.collateralToken, collectionId);
           let userPositionId = concat(params.stakeholder, positionId) as Bytes;
           let userPosition = UserPosition.load(userPositionId.toHex());
-          userPosition.balance -= params.amount;
+          userPosition.balance = userPosition.balance.minus(params.amount);
           userPosition.save();
         }
     } else {
@@ -243,7 +244,7 @@ export function handlePositionsMerge(event: PositionsMerge): void {
         let positionId = toPositionId(params.collateralToken, collectionId);
         let userPositionId = concat(params.stakeholder, positionId) as Bytes;
         let userPosition = UserPosition.load(userPositionId.toHex())
-        userPosition.balance -= params.amount;
+        userPosition.balance = userPosition.balance.minus(params.amount);
         userPosition.save();
       }
       // increase the balance for the parentCollection
@@ -254,11 +255,11 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       let parentUserPosition = UserPosition.load(parentUserPositionId.toHex());
       if (parentUserPosition == null) {
         parentUserPosition = new UserPosition(parentUserPositionId.toHex());
-        parentUserPosition.balance = 0;
+        parentUserPosition.balance = zeroAsBigInt;
         parentUserPosition.position = parentCollectionIdPosition.id;
         parentUserPosition.user = user.id;
       }
-      parentUserPosition.balance += params.amount;
+      parentUserPosition.balance = parentUserPosition.balance.minus(params.amount);
       parentUserPosition.save();
     }
   } else {
@@ -291,9 +292,9 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       totalIndexSetPosition = new Position(totalIndexSetPositionId.toHex());
       totalIndexSetPosition.collateralToken = params.collateralToken;
       totalIndexSetPosition.collection = totalIndexSetCollection.id;
-      totalIndexSetPosition.lifetimeValue = 0;
+      totalIndexSetPosition.lifetimeValue = zeroAsBigInt;
     }
-    totalIndexSetPosition.lifetimeValue += params.amount;
+    totalIndexSetPosition.lifetimeValue = totalIndexSetPosition.lifetimeValue.plus(params.amount);
     totalIndexSetPosition.save();
     // lower the balance of each partition UserPosition (these positions will already be in the system)
     for (var k=0; k< partition.length; k++) {
@@ -303,10 +304,11 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       let userPosition = UserPosition.load(userPositionId.toHex());
       if (userPosition = null) {
         userPosition = new UserPosition(userPositionId.toHex());
+        userPosition.balance = zeroAsBigInt;
         userPosition.user = user.id;
         userPosition.position = Position.load(positionId.toHex()).id; 
       }
-      userPosition.balance -= params.amount;
+      userPosition.balance = userPosition.balance.minus(params.amount);
       userPosition.save();
     }
     // increase the balance of the union UserPosition (this UserPosition may not be in the system)
@@ -317,9 +319,9 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       unionUserPosition = new UserPosition(unionUserPositionId.toHex());
       unionUserPosition.user = user.id;
       unionUserPosition.position = totalIndexSetPosition.id;
-      unionUserPosition.balance = 0;
+      unionUserPosition.balance = zeroAsBigInt;
     }
-    unionUserPosition.balance += params.amount;
+    unionUserPosition.balance = unionUserPosition.balance.plus(params.amount);
     unionUserPosition.save();
   }
 }
@@ -344,9 +346,9 @@ export function handlePayoutRedemption(event: PayoutRedemption): void {
       parentPositionUserPosition = new UserPosition(parentPositionUserPositionId.toHex());
       parentPositionUserPosition.position = parentPosition.id;
       parentPositionUserPosition.user = user.id;
-      parentPositionUserPosition.balance = 0;
+      parentPositionUserPosition.balance = zeroAsBigInt;
     }
-    parentPositionUserPosition.balance += params.payout;
+    parentPositionUserPosition.balance = parentPositionUserPosition.balance.plus(params.payout);
     parentPositionUserPosition.save();
   }
 
@@ -355,7 +357,7 @@ export function handlePayoutRedemption(event: PayoutRedemption): void {
     let positionId = toPositionId(params.collateralToken, collectionId);
     let userPositionId = concat(params.redeemer, positionId) as Bytes;
     let userPosition = UserPosition.load(userPositionId.toHex());
-    userPosition.balance = 0;
+    userPosition.balance = zeroAsBigInt;
     userPosition.save();
   }
 }
@@ -367,7 +369,7 @@ export function handleTransferSingle(event: TransferSingle): void {
   let position = Position.load(params._id.toHex());
   let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id)) as Bytes;
   let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
-  _fromUserPosition.balance -= params._value;
+  _fromUserPosition.balance = _fromUserPosition.balance.minus(params._value);
   _fromUserPosition.save();
 
   // The _to UserPosition doesn't have to be in the system
@@ -382,10 +384,10 @@ export function handleTransferSingle(event: TransferSingle): void {
   if (_toUserPosition  == null) {
     _toUserPosition = new UserPosition(_toUserPositionId.toHex());
     _toUserPosition.user = _toUser.id;
-    _toUserPosition.balance = 0;
+    _toUserPosition.balance = zeroAsBigInt;
     _toUserPosition.position = position.id;
   } 
-  _toUserPosition.balance += params._value;
+  _toUserPosition.balance = _toUserPosition.balance.plus(params._value)
   _toUserPosition.save();
 }
 
@@ -411,7 +413,7 @@ export function handleTransferBatch(event: TransferBatch): void {
     let bytesPositionId = bigIntToBytes32(copyPositionIds[i]);
     let _fromUserPositionId = concat(params._from, bytesPositionId) as Bytes;
     let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
-    _fromUserPosition.balance -= copyValues[i];
+    _fromUserPosition.balance = _fromUserPosition.balance.minus(copyValues[i]);
     _fromUserPosition.save();
 
     let _toUserPositionId = concat(params._to, bigIntToBytes32(copyPositionIds[i])) as Bytes;
@@ -419,11 +421,11 @@ export function handleTransferBatch(event: TransferBatch): void {
     if (_toUserPosition  == null) {
       _toUserPosition = new UserPosition(_toUserPositionId.toHex());
       _toUserPosition.user = _toUser.id;
-      let position = Position.load(copyPositionIds[i].toHex());
+      let position = Position.load(bigIntToBytes32(copyPositionIds[i]).toHex());
       _toUserPosition.position = position.id;
-      _toUserPosition.balance = 0;
+      _toUserPosition.balance = zeroAsBigInt;
     } 
-    _toUserPosition.balance += copyValues[i];
+    _toUserPosition.balance = _toUserPosition.balance.plus(copyValues[i]);
     _toUserPosition.save();
   }
 }

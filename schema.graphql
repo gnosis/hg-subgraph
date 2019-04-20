@@ -25,15 +25,14 @@ type Position @entity {
   id: ID!
   collateralToken: Bytes!
   collection: Collection!
-  activeValue: BigInt
-  lifetimeValue: BigInt
+  lifetimeValue: BigInt!
 }
 
 type UserPosition @entity {
  id: ID!
- position: Position 
+ position: Position! 
  balance: BigInt!
- user: User
+ user: User!
 }
 
 type User @entity {

@@ -91,17 +91,13 @@ describe('hg-subgraph', function() {
 
       for(const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
         assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 50);
-        // console.log('positionId:', positionId, 'balanceOfTrader: ', await predictionMarketSystem.balanceOf(trader, positionId));
         const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-        // console.log('PositionId: ', positionId);
-		// console.log("TCL: userPositionId", userPositionId, 'typeof: ' , typeof userPositionId);
         let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
             query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
         })).data.data.userPositions[0];
         assert.equal(positionGraphData.balance, 50);
         assert.equal(positionGraphData.position.id, positionId);
         assert.equal(positionGraphData.user.id, trader.toLowerCase());
-        // log('graphData', positionGraphData);
       }
 
       // split a position from another collectionId --> make sure split adds the all the new UserPosition balances AND subtracts from the former UserPosition
