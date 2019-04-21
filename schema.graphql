@@ -25,7 +25,10 @@ type Position @entity {
   id: ID!
   collateralToken: Bytes!
   collection: Collection!
+  conditions: [Condition!]!
+  indexSets: [BigInt!]!
   lifetimeValue: BigInt!
+  activeValue: BigInt!
 }
 
 type UserPosition @entity {
@@ -38,15 +41,22 @@ type UserPosition @entity {
 type User @entity {
  id: ID!
  userPositions: [UserPosition!] @derivedFrom(field: "user")
- # participatedConditions: [Condition!]
- # firstParticipation: BigInt
- # lastActive: BigInt
+ participatedConditions: [Condition!]
+ firstParticipation: BigInt!
+ lastActive: BigInt!
 }
 
+type Operator @entity {
+  id: ID!
+  totalValueTransferred: BigInt
+  associatedAccounts: [User!]! 
+  firstParticipation: BigInt!
+  lastActive: BigInt!
+}
 
-# Operators
-
-# Redeemed Collateral
-
-
+type Collateral @entity {
+  id: ID!
+  splitCollateral: BigInt!
+  redeemedCollateral: BigInt!
+}
 

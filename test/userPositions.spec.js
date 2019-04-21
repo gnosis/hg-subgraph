@@ -76,8 +76,12 @@ describe('hg-subgraph', function() {
       await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader })
       const partition = ['6', '1']
 
+      try {
       await predictionMarketSystem.splitPosition(collateralToken.address, '0x0000000000000000000000000000000000000000000000000000000000000000', globalConditionId, partition, 50, { from: trader })
       await waitForGraphSync()
+      } catch (e) {
+          console.log('message:', e.message);
+      }
 
       const collectionIds = partition.map(indexSet => soliditySha3(
         { type: 'bytes32', value: globalConditionId },
@@ -89,21 +93,28 @@ describe('hg-subgraph', function() {
         { type: 'bytes32', value: collectionId },
       ))
 
-      for(const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
-        assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 50);
-        const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-        let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
-            query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
-        })).data.data.userPositions[0];
-        assert.equal(positionGraphData.balance, 50);
-        assert.equal(positionGraphData.position.id, positionId);
-        assert.equal(positionGraphData.user.id, trader.toLowerCase());
-      }
+      
+        for(const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
+            assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 50);
+            const userPositionId = (trader + positionId.slice(2)).toLowerCase();
+            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+                query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
+            })).data.data.userPositions[0];
+            assert.equal(positionGraphData.balance, 50);
+            assert.equal(positionGraphData.position.id, positionId);
+            assert.equal(positionGraphData.user.id, trader.toLowerCase());
+        }
+       
 
       // split a position from another collectionId --> make sure split adds the all the new UserPosition balances AND subtracts from the former UserPosition
       const collectionToSplitOn = collectionIds[0];
-      await predictionMarketSystem.splitPosition(collateralToken.address, collectionToSplitOn, globalConditionId2, partition, 25, { from: trader })
-      await waitForGraphSync()
+      try {
+        await predictionMarketSystem.splitPosition(collateralToken.address, collectionToSplitOn, globalConditionId2, partition, 25, { from: trader })
+        await waitForGraphSync()
+      } catch (e) {
+        console.log('message: ', e.message);
+      }
+
 
       const collectionIds2 = partition.map(indexSet => toHex(toBN(soliditySha3(
           { type: 'bytes32', value: globalConditionId2 },
@@ -116,21 +127,23 @@ describe('hg-subgraph', function() {
           { type: 'bytes32', value: collectionId },
           ))
         // console.log("TCL: positionIds2", positionIds2)
+    
+     
+        for(const positionId of positionIds2) {
+            assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 25);
+            // console.log('positionId:', positionId, 'balanceOfTrader: ', await predictionMarketSystem.balanceOf(trader, positionId));
+            const userPositionId = (trader + positionId.slice(2)).toLowerCase();
+            // console.log('PositionId: ', positionId);
+            // console.log("TCL: userPositionId", userPositionId, 'typeof: ' , typeof userPositionId);
+            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+                query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
+            })).data.data.userPositions[0];
+            assert.equal(positionGraphData.balance, 25);
+            assert.equal(positionGraphData.position.id, positionId);
+            assert.equal(positionGraphData.user.id, trader.toLowerCase());
+        }
 
-      for(const [positionId, collectionId] of positionIds2.map((position, index) => [position, collectionIds2[index]])) {
-        // console.log("TCL: positionId", positionId)
-        assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 25);
-        // console.log('positionId:', positionId, 'balanceOfTrader: ', await predictionMarketSystem.balanceOf(trader, positionId));
-        const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-        // console.log('PositionId: ', positionId);
-		// console.log("TCL: userPositionId", userPositionId, 'typeof: ' , typeof userPositionId);
-        let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
-            query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
-        })).data.data.userPositions[0];
-        assert.equal(positionGraphData.balance, 25);
-        assert.equal(positionGraphData.position.id, positionId);
-        assert.equal(positionGraphData.user.id, trader.toLowerCase());
-      }
+
         // // verify that parentPosition is -25 
         const parentPositionFromSplit = soliditySha3( 
             { type: 'address', value: collateralToken.address},
@@ -148,9 +161,16 @@ describe('hg-subgraph', function() {
         // split 6 into 4 and 2
         const partition2 = ['4', '2'];
         const sixPositionId = positionIds[0];
-
+        
+        try {
         await predictionMarketSystem.splitPosition(collateralToken.address, "0x00", globalConditionId, partition2, 5, { from: trader })
         await waitForGraphSync()
+        } catch (e) {
+            console.log('message: ', e.message);
+        }
+
+
+
         assert.equal(await predictionMarketSystem.balanceOf(trader, sixPositionId), 20);
 
         const collectionIds3 = partition2.map(indexSet => {
@@ -167,11 +187,9 @@ describe('hg-subgraph', function() {
             )
         });
 
-        for(const [positionId, collectionId] of positionIds3.map((position, index) => [position, collectionIds3[index]])) {
+        for(const positionId of positionIds3) {
             assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 5);
             const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-            // console.log('PositionId: ', positionId);
-            // console.log("TCL: userPositionId", userPositionId, 'typeof: ' , typeof userPositionId);
             let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
                 query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
             })).data.data.userPositions[0];
