@@ -29,7 +29,11 @@ dataSources:
         - event: PositionSplit(address,address,bytes32,bytes32,uint256[],uint256)
           handler: handlePositionSplit
         - event: PositionsMerge(address,address,bytes32,bytes32,uint256[],uint256)
-          handler: handlePositionMerge
-        - event: PayoutRedemption(address,address,bytes32,uint256)
+          handler: handlePositionsMerge
+        - event: PayoutRedemption(address,address,bytes32,bytes32,uint256[],uint256)
           handler: handlePayoutRedemption
+        - event: TransferSingle(address,address,address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(address,address,address,uint256[],uint256[])
+          handler: handleTransferBatch
       file: ./src/mapping.ts
