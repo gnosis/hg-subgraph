@@ -7,26 +7,8 @@ const PredictionMarketSystem = TruffleContract(require('@gnosis.pm/hg-contracts/
 const ERC20Mintable = TruffleContract(require('openzeppelin-solidity/build/contracts/ERC20Mintable.json'))
 ;[PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'))
 const web3 = PredictionMarketSystem.web3
-const { randomHex, soliditySha3, toHex, toBN } = web3.utils
+const { randomHex, soliditySha3, toHex, toBN, padLeft } = web3.utils
 const { log, error } = console;
-
-const SUBGRAPHNAME = "a" + randomHex(10);
-
-(createAndDeployANewSubgraph = (name) => {
-    try {
-        execSync(`graph create Gnosis/${name} --node http://127.0.0.1:8020`, { cwd: `/Users/antonvs/Projects/gnosis/hg-subgraph`});
-        log(`Local subgraph ${name} has been created.`)    
-    } catch(e) {
-        log(`Couldn't create the subgraph with name: ${name}`);
-    }
-
-    try {
-        execSync(`graph deploy Gnosis/${name} --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020`, { cwd: `/Users/antonvs/Projects/gnosis/hg-subgraph`});
-        log(`Local subgraph ${name} has been deployed.`)
-    } catch(e) {
-        log(`Couldn't deploy the subgraph with name: ${name}`);
-    }
-})(SUBGRAPHNAME);
 
 async function waitForGraphSync(targetBlockNumber) {
     if(targetBlockNumber == null) {
@@ -35,11 +17,11 @@ async function waitForGraphSync(targetBlockNumber) {
 
     do { await delay(100) }
     while((await axios.post('http://127.0.0.1:8000/subgraphs', {
-        query: `{subgraphs(orderBy:createdAt orderDirection:desc where: {name: "Gnosis/${SUBGRAPHNAME}"}) { versions { deployment { latestEthereumBlockNumber }} } }`,
+        query: `{subgraphs(orderBy:createdAt orderDirection:desc where: {name: "InfiniteStyles/exampleGraph"}) { versions { deployment { latestEthereumBlockNumber }} } }`,
     })).data.data.subgraphs[0].versions[0].deployment.latestEthereumBlockNumber < targetBlockNumber);
 }
 
-describe('hg-subgraph', function() {
+describe('hg-subgraph full interaction', function() {
     this.timeout(10000)
     let accounts, predictionMarketSystem, collateralToken, minter, globalConditions;
 
@@ -74,7 +56,7 @@ describe('hg-subgraph', function() {
       await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader1 })
 
       // Assert that Condition data is being stored properly
-      const conditionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/Gnosis/${SUBGRAPHNAME}`, {
+      const conditionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
         query: `{conditions(where: { id: "${globalConditions[0].conditionId}"}) { id oracle creator resolved outcomeSlotCount questionId payoutDenominator collections payoutNumerators}}`,
       })).data.data.conditions;
       assert(conditionGraphData[0]);
@@ -104,7 +86,7 @@ describe('hg-subgraph', function() {
       ))
   
       // Assert that Collection data is being stored properly
-      const collectionsGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/Gnosis/${SUBGRAPHNAME}`, {
+      const collectionsGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
       query: `{collections { id indexSets conditions { id }}}`,
       })).data.data;
       

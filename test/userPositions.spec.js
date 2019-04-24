@@ -7,26 +7,8 @@ const PredictionMarketSystem = TruffleContract(require('@gnosis.pm/hg-contracts/
 const ERC20Mintable = TruffleContract(require('openzeppelin-solidity/build/contracts/ERC20Mintable.json'))
 ;[PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'))
 const web3 = PredictionMarketSystem.web3
-const { randomHex, soliditySha3, toHex, toBN } = web3.utils
+const { randomHex, soliditySha3, toHex, toBN, padLeft } = web3.utils
 const { log, error } = console;
-
-const SUBGRAPHNAME = "a" + randomHex(10);
-
-(createAndDeployANewSubgraph = (name) => {
-    try {
-        execSync(`graph create InfiniteStyles/${name} --node http://127.0.0.1:8020`, { cwd: `/Users/antonvs/Projects/gnosis/hg-subgraph`});
-        log(`Local subgraph ${name} has been created.`)    
-    } catch(e) {
-        log(`Couldn't create the subgraph with name: ${name}`);
-    }
-
-    try {
-        execSync(`graph deploy InfiniteStyles/${name} --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020`, { cwd: `/Users/antonvs/Projects/gnosis/hg-subgraph`});
-        log(`Local subgraph ${name} has been deployed.`)
-    } catch(e) {
-        log(`Couldn't deploy the subgraph with name: ${name}`);
-    }
-})(SUBGRAPHNAME);
 
 async function waitForGraphSync(targetBlockNumber) {
     if(targetBlockNumber == null) {
@@ -35,11 +17,11 @@ async function waitForGraphSync(targetBlockNumber) {
 
     do { await delay(100) }
     while((await axios.post('http://127.0.0.1:8000/subgraphs', {
-        query: `{subgraphs(orderBy:createdAt orderDirection:desc where: {name: "InfiniteStyles/${SUBGRAPHNAME}"}) { versions { deployment { latestEthereumBlockNumber }} } }`,
+        query: `{subgraphs(orderBy:createdAt orderDirection:desc where: {name: "InfiniteStyles/exampleGraph"}) { versions { deployment { latestEthereumBlockNumber }} } }`,
     })).data.data.subgraphs[0].versions[0].deployment.latestEthereumBlockNumber < targetBlockNumber);
 }
 
-describe('hg-subgraph', function() {
+describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
     this.timeout(10000)
     let accounts, predictionMarketSystem, collateralToken, minter, globalConditionId, globalConditionId2;
 
@@ -97,7 +79,7 @@ describe('hg-subgraph', function() {
         for(const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
             assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 50);
             const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
                 query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
             })).data.data.userPositions[0];
             assert.equal(positionGraphData.balance, 50);
@@ -116,26 +98,23 @@ describe('hg-subgraph', function() {
       }
 
 
-      const collectionIds2 = partition.map(indexSet => toHex(toBN(soliditySha3(
+      const collectionIds2 = partition.map(indexSet => padLeft(toHex(toBN(soliditySha3(
           { type: 'bytes32', value: globalConditionId2 },
           { type: 'uint', value: indexSet },
-      )).add(toBN(collectionToSplitOn)).maskn(256)));
-    //   console.log("TCL: collectionIds2", collectionIds2)
+      )).add(toBN(collectionToSplitOn)).maskn(256))), 64);
+    
 
       const positionIds2 = collectionIds2.map(collectionId => soliditySha3(
           { type: 'address', value: collateralToken.address },
           { type: 'bytes32', value: collectionId },
           ))
-        // console.log("TCL: positionIds2", positionIds2)
+    
     
      
         for(const positionId of positionIds2) {
             assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 25);
-            // console.log('positionId:', positionId, 'balanceOfTrader: ', await predictionMarketSystem.balanceOf(trader, positionId));
             const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-            // console.log('PositionId: ', positionId);
-            // console.log("TCL: userPositionId", userPositionId, 'typeof: ' , typeof userPositionId);
-            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
                 query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
             })).data.data.userPositions[0];
             assert.equal(positionGraphData.balance, 25);
@@ -151,7 +130,7 @@ describe('hg-subgraph', function() {
         )
         assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionFromSplit), 25);
         const parentPositionFromSplitUserPosition = (trader + parentPositionFromSplit.slice(2)).toLowerCase();
-        let splitPositionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+        let splitPositionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
             query: `{userPositions(where: {id: "${parentPositionFromSplitUserPosition}"}) {balance position { id } user { id }}}`,
         })).data.data.userPositions[0];    
         assert.equal(splitPositionGraphData.balance, 25);
@@ -190,7 +169,7 @@ describe('hg-subgraph', function() {
         for(const positionId of positionIds3) {
             assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 5);
             const userPositionId = (trader + positionId.slice(2)).toLowerCase();
-            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+            let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
                 query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
             })).data.data.userPositions[0];
             assert.equal(positionGraphData.balance, 5);
@@ -198,7 +177,7 @@ describe('hg-subgraph', function() {
             assert.equal(positionGraphData.user.id, trader.toLowerCase());
         }
         const sixUserPositionId = (trader + sixPositionId.slice(2)).toLowerCase();
-        let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+        let positionGraphData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
             query: `{userPositions(where: {id: "${sixUserPositionId}"}) {balance position { id } user { id }}}`,
         })).data.data.userPositions[0];
         assert.equal(positionGraphData.balance, 20);
@@ -211,7 +190,7 @@ describe('hg-subgraph', function() {
 
         // assert that a new UserPosition and User have been created for trader2
         const trader2UserPositionId = (trader2 + sixPositionId.slice(2)).toLowerCase();
-        let trader2UserPositionData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+        let trader2UserPositionData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
             query: `{userPositions(where: {id: "${trader2UserPositionId}"}) {balance position { id } user { id }}}`,
         })).data.data.userPositions[0];        
         assert.equal(await predictionMarketSystem.balanceOf(trader2, sixPositionId), 10);
@@ -228,7 +207,7 @@ describe('hg-subgraph', function() {
 
         for (const [positionId, collectionId] of positionIds4.map((position, i) => [position, collectionIds2[i]])) {
             const userPositionId = (trader2 + positionId.slice(2)).toLowerCase();
-            let batchTransferUserPositionsData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/${SUBGRAPHNAME}`, {
+            let batchTransferUserPositionsData = (await axios.post(`http://127.0.0.1:8000/subgraphs/name/InfiniteStyles/exampleGraph`, {
                 query: `{userPositions(where: {id: "${userPositionId}"}) {balance position { id } user { id }}}`,
             })).data.data.userPositions[0]; 
             assert.equal(await predictionMarketSystem.balanceOf(trader2, positionId), 5);
