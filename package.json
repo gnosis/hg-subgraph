@@ -1,6 +1,8 @@
 {
-  "name": "PredictionMarkets",
+  "name": "Gnosis-Markets-Subgraph",
   "version": "0.1.0",
+  "author": "Gnosis",
+  "description": "A subgraph for Gnosis Markets",
   "scripts": {
     "create": "graph create InfiniteStyles/exampleGraph --node https://api.thegraph.com/deploy/",
     "create-local": "graph create InfiniteStyles/exampleGraph --node http://127.0.0.1:8020",
@@ -8,8 +10,9 @@
     "build": "graph build --debug",
     "deploy": "graph deploy InfiniteStyles/pm --debug --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
     "deploy-local": "graph deploy InfiniteStyles/exampleGraph --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
-    "refresh-abi": "cd node_modules/@gnosis.pm/hg-contracts && truffle compile && cd ../../.. && node abiGenerator.js",
+    "refresh-abi": "cd node_modules/@gnosis.pm/hg-contracts && truffle compile && cd ../../.. && node ops/abiGenerator.js",
     "migrate": "cd node_modules/@gnosis.pm/hg-contracts && echo 'module.exports={networks:{ganache:{host:\"localhost\",port:8545,network_id:\"*\"}}}' > truffle-local.js && truffle migrate --network=ganache --reset",
+    "tslint": "tslint -c tslint.json 'src/**/*.ts'",
     "test": "npm run codegen && npm run deploy-local && mocha --exit",
     "create-deploy-local": "npm run create-local && npm run deploy-local"
   },
@@ -20,16 +23,16 @@
     "axios": "^0.18.0",
     "chai": "^4.2.0",
     "delay": "^4.1.0",
-    "ganache-cli": "^6.4.1",
-    "mocha": "^6.0.2",
+    "mocha": "^6.1.4",
     "openzeppelin-solidity": "^2.2.0",
     "tmp": "^0.1.0"
   },
   "dependencies": {
     "babel-polyfill": "^6.26.0",
     "babel-register": "^6.26.0",
+    "dotenv": "^7.0.0",
     "truffle": "^5.0.4",
-    "truffle-contract": "^4.0.5",
+    "truffle-contract": "^4.0.12",
     "truffle-hdwallet-provider": "^1.0.4"
   }
 }
