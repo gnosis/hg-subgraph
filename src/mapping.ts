@@ -410,7 +410,7 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     }
   } else {
     // Section: Covers merging a partially full indexSet (merges into the Union Position on the same level)
-
+    
     // Here, some extra details such as Collection and Position have to be created, because it's possible it didn't exist yet from splitPosition alone
     // Union Position & Collection & UserPosition Section
     let totalIndexSetCollectionId = add256(

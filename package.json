@@ -11,6 +11,7 @@
     "build": "graph build --debug",
     "deploy": "graph deploy InfiniteStyles/exampleGraph --debug --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
     "deploy-local": "graph deploy InfiniteStyles/exampleGraph --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
+    "docker:down": "docker-compose down -v",
     "refresh-abi": "cd node_modules/@gnosis.pm/hg-contracts && truffle compile && cd ../../.. && node ops/abiGenerator.js",
     "migrate": "cd node_modules/@gnosis.pm/hg-contracts && echo 'module.exports={networks:{ganache:{host:\"localhost\",port:8545,network_id:\"*\"}}}' > truffle-local.js && truffle migrate --network=ganache --reset",
     "test": "npm run codegen && npm run deploy-local && mocha --exit",
@@ -40,7 +41,7 @@
     "babel-register": "^6.26.0",
     "dotenv": "^7.0.0",
     "truffle": "^5.0.4",
-    "truffle-contract": "^4.0.12",
+    "truffle-contract": "^4.0.13",
     "truffle-hdwallet-provider": "^1.0.4",
     "tslint-config-prettier": "^1.18.0"
   }
