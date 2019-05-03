@@ -166,7 +166,11 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       )
     );
 
-    assert.equal(await collateralToken.balanceOf(trader), 0);
+    for (positionId of positionIds) {
+      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
+    }
+
+    // assert.equal(await collateralToken.balanceOf(trader), 0);
 
     await waitForGraphSync();
 

@@ -3,6 +3,7 @@ const axios = require('axios');
 const delay = require('delay');
 const { execSync, spawnSync } = require('child_process');
 const TruffleContract = require('truffle-contract');
+const { add } = require('bn.js');
 const PredictionMarketSystem = TruffleContract(
   require('@gnosis.pm/hg-contracts/build/contracts/PredictionMarketSystem.json')
 );
@@ -11,7 +12,7 @@ const ERC20Mintable = TruffleContract(
 );
 [PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'));
 const web3 = PredictionMarketSystem.web3;
-const { randomHex, soliditySha3, toHex, toBN, padLeft } = web3.utils;
+const { randomHex, soliditySha3, toHex, toBN, padLeft, keccak256 } = web3.utils;
 const { log, error } = console;
 
 async function waitForGraphSync(targetBlockNumber) {
@@ -86,7 +87,7 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
     await collateralToken.mint(trader, 100, { from: minter });
     assert.equal(await collateralToken.balanceOf(trader), 100);
     await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
-    const partition = ['6', '1'];
+    const partition = [0b110, 0b01];
 
     try {
       await predictionMarketSystem.splitPosition(
@@ -97,7 +98,6 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
         50,
         { from: trader }
       );
-      await waitForGraphSync();
     } catch (e) {
       console.log('message:', e.message);
     }
@@ -112,6 +112,7 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
         { type: 'bytes32', value: collectionId }
       )
     );
+    await waitForGraphSync();
 
     for (const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 50);
@@ -145,19 +146,12 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
 
     const collectionIds2 = partition.map(
       indexSet =>
-        padLeft(
-          toHex(
-            toBN(
-              soliditySha3(
-                { type: 'bytes32', value: globalConditionId2 },
-                { type: 'uint', value: indexSet }
-              )
-            )
-              .add(toBN(collectionToSplitOn))
-              .maskn(256)
+        '0x' +
+        toHex(
+          toBN(collectionToSplitOn).add(
+            toBN(keccak256(globalConditionId2 + padLeft(toHex(indexSet), 64).slice(2)))
           )
-        ),
-      64
+        ).slice(-64)
     );
 
     const positionIds2 = collectionIds2.map(collectionId =>
@@ -201,7 +195,7 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
     // split a position from a different position on the same condition --> make sure split subtracts correctly from the parentIndex and adds to the appropriate list of new indexes, make sure split doesn't add to the full index set
 
     // split 6 into 4 and 2
-    const partition2 = ['4', '2'];
+    const partition2 = [0b100, 0b10];
     const sixPositionId = positionIds[0];
 
     try {
@@ -230,8 +224,6 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
         )
       );
     });
-
-    collectionIds3.map(c => console.log(c.length));
 
     const positionIds3 = collectionIds3.map(collectionId => {
       return soliditySha3(
