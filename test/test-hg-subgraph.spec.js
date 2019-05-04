@@ -10,7 +10,7 @@ const ERC20Mintable = TruffleContract(
 );
 [PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'));
 const web3 = PredictionMarketSystem.web3;
-const { randomHex, soliditySha3, toHex, toBN, padLeft } = web3.utils;
+const { randomHex, soliditySha3, toHex, toBN, padLeft, keccak256 } = web3.utils;
 
 async function waitForGraphSync(targetBlockNumber) {
   if (targetBlockNumber == null) targetBlockNumber = await web3.eth.getBlockNumber();
@@ -153,24 +153,18 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     );
 
     const collectionIds = partition.map(indexSet =>
-      soliditySha3(
-        { type: 'bytes32', value: conditionsInfo[0].conditionId },
-        { type: 'uint', value: indexSet }
-      )
+      keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
 
     const positionIds = collectionIds.map(collectionId =>
-      soliditySha3(
-        { type: 'address', value: collateralToken.address },
-        { type: 'bytes32', value: collectionId }
-      )
+      keccak256(collateralToken.address + collectionId.slice(2))
     );
 
     for (positionId of positionIds) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
     }
 
-    // assert.equal(await collateralToken.balanceOf(trader), 0);
+    assert.equal(await collateralToken.balanceOf(trader), 0);
 
     await waitForGraphSync();
 
@@ -241,10 +235,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     );
 
     const positionIds2 = collectionIds2.map(collectionId =>
-      soliditySha3(
-        { type: 'address', value: collateralToken.address },
-        { type: 'bytes32', value: collectionId }
-      )
+      keccak256(collateralToken.address + collectionId.slice(2))
     );
 
     await waitForGraphSync();

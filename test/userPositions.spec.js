@@ -103,14 +103,11 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
     }
 
     const collectionIds = partition.map(indexSet =>
-      soliditySha3({ type: 'bytes32', value: globalConditionId }, { type: 'uint', value: indexSet })
+      keccak256(globalConditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
 
     const positionIds = collectionIds.map(collectionId =>
-      soliditySha3(
-        { type: 'address', value: collateralToken.address },
-        { type: 'bytes32', value: collectionId }
-      )
+      keccak256(collateralToken.address + collectionId.slice(2))
     );
     await waitForGraphSync();
 
@@ -155,10 +152,7 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
     );
 
     const positionIds2 = collectionIds2.map(collectionId =>
-      soliditySha3(
-        { type: 'address', value: collateralToken.address },
-        { type: 'bytes32', value: collectionId }
-      )
+      keccak256(collateralToken.address + collectionId.slice(2))
     );
 
     for (const positionId of positionIds2) {
@@ -176,9 +170,8 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
     }
 
     // // verify that parentPosition is -25
-    const parentPositionFromSplit = soliditySha3(
-      { type: 'address', value: collateralToken.address },
-      { type: 'bytes32', value: collectionToSplitOn }
+    const parentPositionFromSplit = keccak256(
+      collateralToken.address + collectionToSplitOn.slice(2)
     );
     assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionFromSplit), 25);
     const parentPositionFromSplitUserPosition = (
@@ -214,23 +207,13 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
 
     assert.equal(await predictionMarketSystem.balanceOf(trader, sixPositionId), 20);
 
-    const collectionIds3 = partition2.map(indexSet => {
-      return toHex(
-        toBN(
-          soliditySha3(
-            { type: 'bytes32', value: globalConditionId },
-            { type: 'uint', value: indexSet }
-          )
-        )
-      );
-    });
+    const collectionIds3 = partition2.map(indexSet =>
+      keccak256(globalConditionId + padLeft(toHex(indexSet), 64).slice(2))
+    );
 
-    const positionIds3 = collectionIds3.map(collectionId => {
-      return soliditySha3(
-        { type: 'address', value: collateralToken.address },
-        { type: 'bytes32', value: collectionId }
-      );
-    });
+    const positionIds3 = collectionIds3.map(collectionId =>
+      keccak256(collateralToken.address + collectionId.slice(2))
+    );
 
     for (const positionId of positionIds3) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 5);
@@ -278,6 +261,7 @@ describe('hg-subgraph UserPositions <> Positions.activeValue', function() {
 
     // // TESTS FOR BATCH TRADING OF DIFFERENT OUTCOME TOKENS
     const positionIds4 = positionIds2.slice();
+
     await predictionMarketSystem.safeBatchTransferFrom(
       trader,
       trader2,
