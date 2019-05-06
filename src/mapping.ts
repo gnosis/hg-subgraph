@@ -348,7 +348,7 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     if (isZeroCollectionId(params.parentCollectionId)) {
       // Collateral Section
       let collateralToken = Collateral.load(params.collateralToken.toHex());
-      collateralToken.splitCollateral = collateralToken.redeemedCollateral.plus(params.amount);
+      collateralToken.redeemedCollateral = collateralToken.redeemedCollateral.plus(params.amount);
       collateralToken.save();
 
       for (var i = 0; i < partition.length; i++) {
@@ -459,7 +459,7 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       totalIndexSetPosition.activeValue = zeroAsBigInt;
     }
     totalIndexSetPosition.activeValue = totalIndexSetPosition.activeValue.plus(params.amount);
-    totalIndexSetPosition.lifetimeValue = totalIndexSetPosition.lifetimeValue.plus(params.amount);
+
     totalIndexSetPosition.save();
     // Union UserPosition Section
     let unionPositionId = toPositionId(
@@ -477,21 +477,25 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     unionUserPosition.balance = unionUserPosition.balance.plus(params.amount);
     unionUserPosition.save();
 
+    let partitionCopy: BigInt[] = [];
     // This is the section of Positions that will be merged, they will already be in the system
     for (var k = 0; k < partition.length; k++) {
+      partitionCopy[k] = partition[k];
+
       let collectionId = add256(
         params.parentCollectionId,
-        toCollectionId(params.conditionId, partition[i])
+        toCollectionId(params.conditionId, partitionCopy[k])
       );
       // Position Section
       let positionId = toPositionId(params.collateralToken, collectionId);
       let position = Position.load(positionId.toHex());
       position.activeValue = position.activeValue.minus(params.amount);
       position.save();
-      // UserPosition Section
+      // // UserPosition Section
       let userPositionId = concat(params.stakeholder, positionId) as Bytes;
       let userPosition = UserPosition.load(userPositionId.toHex());
-      if ((userPosition = null)) {
+
+      if (userPosition == null) {
         userPosition = new UserPosition(userPositionId.toHex());
         userPosition.balance = zeroAsBigInt;
         userPosition.user = user.id;
@@ -552,8 +556,14 @@ export function handlePayoutRedemption(event: PayoutRedemption): void {
     );
     let positionId = toPositionId(params.collateralToken, collectionId);
     let userPositionId = concat(params.redeemer, positionId) as Bytes;
-    let userPosition = UserPosition.load(userPositionId.toHex());
     let position = Position.load(positionId.toHex());
+    let userPosition = UserPosition.load(userPositionId.toHex());
+    if (userPosition == null) {
+      userPosition = new UserPosition(userPositionId.toHex());
+      userPosition.position = position.id;
+      userPosition.user = user.id;
+      userPosition.balance = zeroAsBigInt;
+    }
     position.activeValue = position.activeValue.minus(userPosition.balance);
     position.save();
     userPosition.balance = zeroAsBigInt;
@@ -661,21 +671,26 @@ export function handleTransferBatch(event: TransferBatch): void {
     copyPositionIds[i] = _positionIds[i];
     copyValues[i] = _values[i];
 
-    // let clonePositionsConditions = Position.load(copyPositionIds[i].toHex()).conditions;
-    // for (var q = 0; q < clonePositionsConditions.length; q++) {
-    // if (
-    //   !checkIfValueExistsInArray(
-    //     _toUser.participatedConditions as String[],
-    //     clonePositionsConditions[q]
-    //   )
-    // ) {
-    //   let _toUserParticipatedConditions = _toUser.participatedConditions;
-    //   _toUserParticipatedConditions[_toUserParticipatedConditions.length] =
-    //     clonePositionsConditions[q];
-    //   _toUser.participatedConditions = _toUserParticipatedConditions;
-    //   _toUser.save();
-    // }
-    // }
+    let clonedPosition = Position.load(copyPositionIds[i].toHex());
+    if (!Array.isArray(clonedPosition.conditions)) {
+      clonedPosition.conditions = [];
+    }
+
+    let clonedPositionConditions = clonedPosition.conditions;
+    for (var q = 0; q < clonedPositionConditions.length; q++) {
+      if (
+        !checkIfValueExistsInArray(
+          _toUser.participatedConditions as String[],
+          clonedPositionConditions[q]
+        )
+      ) {
+        let _toUserParticipatedConditions = _toUser.participatedConditions;
+        _toUserParticipatedConditions[_toUserParticipatedConditions.length] =
+          clonedPositionConditions[q];
+        _toUser.participatedConditions = _toUserParticipatedConditions;
+        _toUser.save();
+      }
+    }
 
     // _from UserPosition Section
     let bytesPositionId = bigIntToBytes32(copyPositionIds[i]);
