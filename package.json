@@ -48,7 +48,7 @@
     "babel-register": "^6.26.0",
     "dotenv": "^7.0.0",
     "truffle": "^5.0.4",
-    "truffle-contract": "^4.0.13",
+    "truffle-contract": "^4.0.14",
     "truffle-hdwallet-provider": "^1.0.4"
   }
 }
