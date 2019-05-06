@@ -1,15 +1,13 @@
 specVersion: 0.0.1
 description: Prediction Markets 2.0 by Gnosis
-repository: https://github.com/gnosis/hg-contracts
+repository: 'https://github.com/gnosis/hg-contracts'
 schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
     name: PredictionMarketSystem
-    # network: rinkeby
     network: dev
     source:
-      # address: '0xec0eB55f84Dd60991170549bcD4b3A05c1b16Bdf'
       address: '0xCfEB869F69431e42cdB54A4F4f105C19C080A601'
       abi: PredictionMarketSystem
     mapping:
@@ -22,18 +20,18 @@ dataSources:
         - name: PredictionMarketSystem
           file: ./abis/PredictionMarketSystem.json
       eventHandlers:
-        - event: ConditionPreparation(bytes32,address,bytes32,uint256)
+        - event: 'ConditionPreparation(bytes32,address,bytes32,uint256)'
           handler: handleConditionPreparation
-        - event: ConditionResolution(bytes32,address,bytes32,uint256,uint256[])
+        - event: 'ConditionResolution(bytes32,address,bytes32,uint256,uint256[])'
           handler: handleConditionResolution
-        - event: PositionSplit(address,address,bytes32,bytes32,uint256[],uint256)
+        - event: 'PositionSplit(address,address,bytes32,bytes32,uint256[],uint256)'
           handler: handlePositionSplit
-        - event: PositionsMerge(address,address,bytes32,bytes32,uint256[],uint256)
+        - event: 'PositionsMerge(address,address,bytes32,bytes32,uint256[],uint256)'
           handler: handlePositionsMerge
-        - event: PayoutRedemption(address,address,bytes32,bytes32,uint256[],uint256)
+        - event: 'PayoutRedemption(address,address,bytes32,bytes32,uint256[],uint256)'
           handler: handlePayoutRedemption
-        - event: TransferSingle(address,address,address,uint256,uint256)
+        - event: 'TransferSingle(address,address,address,uint256,uint256)'
           handler: handleTransferSingle
-        - event: TransferBatch(address,address,address,uint256[],uint256[])
+        - event: 'TransferBatch(address,address,address,uint256[],uint256[])'
           handler: handleTransferBatch
       file: ./src/mapping.ts

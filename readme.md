@@ -1,33 +1,34 @@
 # Prediction Markets Subgraph
-This is a work in progress and is going to be the Subgraph for Gnosis Prediction Markets 2.0 
 
+Subgraph for Gnosis Prediction Markets 2.0
 
-Here is the subgraph deployed
-[Subgraph](https://thegraph.com/explorer/subgraph/infinitestyles/pm)
+---
 
-## Local deployment instructions
+## Deployment Instructions
 
-1.  Start up Ganache CLI in deterministic mode listening at 0.0.0.0:
+Before the subgraph can be deployed to the main graph node, you must create the ABIs, setup the _network_ and _address_ fields in the `subgraph.yaml`, and make sure to create and deploy to the right subgraph name. Below are the steps to do this:
 
-        npx ganache-cli -d -h 0.0.0.0
+1.  git clone https://github.com/gnosis/hg-subgraph.git && cd hg-subgraph
 
-2.  Start the Graph docker:
+2.  npm install
 
-        cd path/to/graphprotocol/graph-node/docker
-        docker-compose up
+3.  npm run refresh-abi
 
-    (Linux users will have to edit the docker-compose.yml to point to the virtual address of the host in order for container to connect with Ganache)
+4.  node ops/set-deployment-environment [network][address]
 
-3.  Run a migration script:
+    You can also alternatively set the network and address in a .env file as envrionment variables.
 
-        npm run migrate
+5.  create the subgraph name desired in `package.json` under the `create` and `deploy` scripts.
 
-4.  Put ABI into right place:
+6.  npm run create
 
-        npm run refresh-abi
+7.  npm run deploy
 
-5.  Create and deploy subgraph:
+---
 
-        npm run codegen
-        npm run create-local
-        npm run deploy-local
+## Testing instructions
+
+All the testing needs to be run in a fresh isolated Docker environment. To run the tests, run this command:
+`npm run create-test-pipeline`
+
+---

@@ -1,0 +1,36 @@
+version: '3'
+services:
+  graph-node:
+    image: >-
+      graphprotocol/graph-node:latest@sha256:9a9e379c685c676e67be476a9fe9d22e0282764405900585f5c1f2ca53b9384f
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8020:8020'
+    links:
+      - ipfs
+      - postgres
+      - ganache
+    environment:
+      postgres_host: 'postgres:5432'
+      postgres_user: postgres
+      postgres_pass: letmein
+      postgres_db: postgres
+      ipfs: 'ipfs:5001'
+      ethereum: 'development:http://ganache:8545'
+      ETHEREUM_REORG_THRESHOLD: 1
+      ETHEREUM_ANCESTOR_COUNT: 1
+  ipfs:
+    build: docker/ipfs
+    ports:
+      - '5001:5001'
+  postgres:
+    build: docker/postgres
+    ports:
+      - '5434:5432'
+    environment:
+      POSTGRES_PASSWORD: letmein
+  ganache:
+    build: docker/ganache
+    ports:
+      - '8545:8545'
