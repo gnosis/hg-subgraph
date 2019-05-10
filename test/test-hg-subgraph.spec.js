@@ -1,4 +1,4 @@
-const assert = require('assert');
+const { assert } = require('chai');
 const axios = require('axios');
 const delay = require('delay');
 const TruffleContract = require('truffle-contract');
@@ -25,6 +25,58 @@ async function waitForGraphSync(targetBlockNumber) {
   );
 }
 
+async function querySubgraph(query) {
+  const response = await axios.post('http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets', {
+    query
+  });
+  return response.data.data;
+}
+
+async function getCondition(conditionId) {
+  return (await querySubgraph(`{
+    condition(id:"${conditionId}") {
+      id
+      creator
+      oracle
+      questionId
+      outcomeSlotCount
+      resolved
+      payoutNumerators
+      payoutDenominator
+      createTransaction
+      creationTimestamp
+      resolveTransaction
+      resolveTimestamp
+      blockNumber
+      collections { id }
+    }
+  }`)).condition;
+}
+
+async function getCollection(collectionId) {
+  return (await querySubgraph(`{
+    collection(id: "${collectionId}") {
+      id
+      conditions { id }
+      indexSets
+    }
+  }`)).collection;
+}
+
+async function getPosition(positionId) {
+  return (await querySubgraph(`{
+    position(id: "${positionId}") {
+      id
+      collateralToken
+      collection { id }
+      conditions { id }
+      indexSets
+      lifetimeValue
+      activeValue
+    }
+  }`)).position;
+}
+
 describe('hg-subgraph conditions <> collections <> positions', function() {
   this.timeout(5000);
   let accounts, predictionMarketSystem, collateralToken, minter;
@@ -43,13 +95,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
   });
 
   it('allows GraphQL queries', async () => {
-    assert(
-      (await axios.post('http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets', {
-        operationName: null,
-        query: '{conditions(first:1){id}}',
-        variables: null
-      })).data.data.conditions
-    );
+    assert(await querySubgraph('{conditions(first:1){id}}'));
   });
 
   it('will index conditions upon preparation and update them upon resolution', async () => {
@@ -73,29 +119,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     await waitForGraphSync();
 
-    const conditionQuery = `{
-      condition(id:"${conditionId}") {
-        id
-        creator
-        oracle
-        questionId
-        outcomeSlotCount
-        resolved
-        payoutNumerators
-        payoutDenominator
-        createTransaction
-        creationTimestamp
-        resolveTransaction
-        resolveTimestamp
-        blockNumber
-        collections
-      }
-    }`;
-
-    let { condition } = (await axios.post(
-      'http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets',
-      { query: conditionQuery }
-    )).data.data;
+    let condition = await getCondition(conditionId);
 
     assert.deepEqual(condition, {
       id: conditionId,
@@ -127,9 +151,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     await waitForGraphSync();
 
-    condition = (await axios.post('http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets', {
-      query: conditionQuery
-    })).data.data.condition;
+    condition = await getCondition(conditionId);
 
     assert.deepEqual(condition, {
       id: conditionId,
@@ -174,17 +196,23 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     assert.equal(await collateralToken.balanceOf(trader), 100);
 
     await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
-    const partition = ['0xffffffff000000000', '0x00000000fffffffff'];
+
+    // normal complete split
+    // =====================
+
+    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map(indexSet =>
+      toBN(indexSet)
+    );
     await predictionMarketSystem.splitPosition(
       collateralToken.address,
-      '0x0000000000000000000000000000000000000000000000000000000000000000',
+      `0x${'00'.repeat(32)}`,
       conditionsInfo[0].conditionId,
-      partition,
+      partition1,
       100,
       { from: trader }
     );
 
-    const collectionIds = partition.map(indexSet =>
+    const collectionIds = partition1.map(indexSet =>
       keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
 
@@ -200,124 +228,314 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     await waitForGraphSync();
 
-    for (const [collectionId, indexSet] of collectionIds.map((c, i) => [c, partition[i]])) {
-      const { collection } = (await axios.post(
-        'http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets',
-        {
-          query: `{
-                    collection(id: "${collectionId}") {
-                        id
-                        conditions { id }
-                        indexSets
-                    }
-                }`
-        }
-      )).data.data;
-      assert(collection, `collection ${collectionId} not found`);
-      assert.equal(collection.conditions.length, collection.indexSets.length);
-      assert.equal(collection.conditions.length, 1);
-      assert.equal(collection.conditions[0].id, conditionsInfo[0].conditionId);
-      assert.equal(collection.indexSets[0], toBN(indexSet).toString());
+    for (const [collectionId, indexSet] of collectionIds.map((c, i) => [c, partition1[i]])) {
+      const collection = await getCollection(collectionId);
+      assert.deepEqual(collection, {
+        id: collectionId,
+        conditions: [{ id: conditionsInfo[0].conditionId }],
+        indexSets: [indexSet.toString()]
+      });
     }
 
-    for (const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
+    for (const [positionId, indexSet, collectionId] of positionIds.map((p, i) => [
+      p,
+      partition1[i],
+      collectionIds[i]
+    ])) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
-      const { position } = (await axios.post(
-        'http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets',
-        {
-          query: `{
-                    position(id: "${positionId}") {
-                        id
-                        collateralToken
-                        collection { id }
-                    }
-                }`
-        }
-      )).data.data;
+      const position = await getPosition(positionId);
 
-      assert(position, `position ${positionId} not found`);
-      assert.equal(position.collection.id, collectionId);
+      assert.deepEqual(position, {
+        id: positionId,
+        collateralToken: collateralToken.address.toLowerCase(),
+        collection: {
+          id: collectionId
+        },
+        conditions: [{ id: conditionsInfo[0].conditionId }],
+        indexSets: [indexSet.toString()],
+        lifetimeValue: '100',
+        activeValue: '100'
+      });
     }
 
-    const parentCollectionId2 = collectionIds[0];
-    const parentCollectionId2BN = toBN(parentCollectionId2);
-    await predictionMarketSystem.splitPosition(
-      collateralToken.address,
-      parentCollectionId2,
-      conditionsInfo[1].conditionId,
-      partition,
-      100,
-      { from: trader }
+    // deep complete splits
+    // ====================
+
+    const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map(indexSet =>
+      toBN(indexSet)
     );
 
-    const collectionIds2 = partition.map(indexSet =>
-      padLeft(
+    for (const [parentPositionId, parentCollectionId, parentIndexSet] of positionIds.map(
+      (positionId, i) => [positionId, collectionIds[i], partition1[i]]
+    )) {
+      await predictionMarketSystem.splitPosition(
+        collateralToken.address,
+        parentCollectionId,
+        conditionsInfo[1].conditionId,
+        partition2,
+        100,
+        { from: trader }
+      );
+
+      const parentCollectionIdBN = toBN(parentCollectionId);
+      const collectionIds2 = partition2.map(indexSet =>
+        padLeft(
+          toHex(
+            toBN(
+              soliditySha3(
+                { type: 'bytes32', value: conditionsInfo[1].conditionId },
+                { type: 'uint', value: indexSet }
+              )
+            )
+              .add(parentCollectionIdBN)
+              .maskn(256)
+          ),
+          64
+        )
+      );
+
+      const positionIds2 = collectionIds2.map(collectionId =>
+        keccak256(collateralToken.address + collectionId.slice(2))
+      );
+
+      await waitForGraphSync();
+
+      const parentPosition = await getPosition(parentPositionId);
+      assert.deepEqual(parentPosition, {
+        id: parentPositionId,
+        collateralToken: collateralToken.address.toLowerCase(),
+        collection: {
+          id: parentCollectionId
+        },
+        conditions: [{ id: conditionsInfo[0].conditionId }],
+        indexSets: [parentIndexSet.toString()],
+        lifetimeValue: '100',
+        activeValue: '0'
+      });
+
+      for (const [collectionId, indexSet] of collectionIds2.map((collectionId, i) => [
+        collectionId,
+        partition2[i]
+      ])) {
+        const collection = await getCollection(collectionId);
+        assert(collection, `collection ${collectionId} not found`);
+        assert.equal(collection.conditions.length, 2);
+        assert.equal(collection.indexSets.length, 2);
+        assert.sameDeepMembers(
+          collection.conditions.map((condition, i) => ({
+            conditionId: condition.id,
+            indexSet: collection.indexSets[i]
+          })),
+          [
+            {
+              conditionId: conditionsInfo[0].conditionId,
+              indexSet: parentIndexSet.toString()
+            },
+            {
+              conditionId: conditionsInfo[1].conditionId,
+              indexSet: indexSet.toString()
+            }
+          ]
+        );
+      }
+
+      for (const [positionId, collectionId, indexSet] of positionIds2.map((positionId, i) => [
+        positionId,
+        collectionIds2[i],
+        partition2[i]
+      ])) {
+        assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
+        const position = await getPosition(positionId);
+
+        assert.deepInclude(position, {
+          id: positionId,
+          collateralToken: collateralToken.address.toLowerCase(),
+          collection: {
+            id: collectionId
+          },
+          lifetimeValue: '100',
+          activeValue: '100'
+        });
+
+        assert.equal(position.conditions.length, position.indexSets.length);
+        assert.sameDeepMembers(
+          position.conditions.map((condition, i) => ({
+            conditionId: condition.id,
+            indexSet: position.indexSets[i]
+          })),
+          [
+            {
+              conditionId: conditionsInfo[0].conditionId,
+              indexSet: parentIndexSet.toString()
+            },
+            {
+              conditionId: conditionsInfo[1].conditionId,
+              indexSet: indexSet.toString()
+            }
+          ]
+        );
+      }
+    }
+
+    // deep partial splits
+    // ===================
+
+    const partition3 = ['0xaaaaaaaa000000000', '0x55555555000000000'].map(indexSet =>
+      toBN(indexSet)
+    );
+    const partition3Union = partition3.reduce((a, b) => a.add(b));
+    assert(partition3Union.eq(partition1[0]));
+
+    const collectionIds2 = partition2.map(indexSet =>
+      keccak256(conditionsInfo[1].conditionId + padLeft(toHex(indexSet), 64).slice(2))
+    );
+
+    for (const [parentCollectionId, parentIndexSet] of collectionIds2.map((collectionId, i) => [
+      collectionId,
+      partition2[i]
+    ])) {
+      const parentCollectionIdBN = toBN(parentCollectionId);
+      const unionCollectionId = padLeft(
         toHex(
           toBN(
             soliditySha3(
-              { type: 'bytes32', value: conditionsInfo[1].conditionId },
-              { type: 'uint', value: indexSet }
+              { type: 'bytes32', value: conditionsInfo[0].conditionId },
+              { type: 'uint', value: partition3Union }
             )
           )
-            .add(parentCollectionId2BN)
+            .add(parentCollectionIdBN)
             .maskn(256)
         ),
         64
-      )
-    );
+      );
+      const parentPositionId = keccak256(collateralToken.address + unionCollectionId.slice(2));
 
-    const positionIds2 = collectionIds2.map(collectionId =>
-      keccak256(collateralToken.address + collectionId.slice(2))
-    );
+      assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionId), 100);
 
-    await waitForGraphSync();
+      await predictionMarketSystem.splitPosition(
+        collateralToken.address,
+        parentCollectionId,
+        conditionsInfo[0].conditionId,
+        partition3,
+        100,
+        { from: trader }
+      );
 
-    for (const collectionId of collectionIds2) {
-      const { collection } = (await axios.post(
-        'http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets',
-        {
-          query: `{
-            collection(id: "${collectionId}") {
-              id
-              conditions { id }
-              indexSets
+      assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionId), 0);
+
+      await waitForGraphSync();
+
+      const parentPosition = await getPosition(parentPositionId);
+      assert.deepInclude(parentPosition, {
+        id: parentPositionId,
+        collateralToken: collateralToken.address.toLowerCase(),
+        collection: {
+          id: unionCollectionId
+        },
+        lifetimeValue: '100',
+        activeValue: '0'
+      });
+      assert.equal(parentPosition.conditions.length, 2);
+      assert.equal(parentPosition.indexSets.length, 2);
+      assert.sameDeepMembers(
+        parentPosition.conditions.map((condition, i) => ({
+          conditionId: condition.id,
+          indexSet: parentPosition.indexSets[i]
+        })),
+        [
+          {
+            conditionId: conditionsInfo[0].conditionId,
+            indexSet: partition3Union.toString()
+          },
+          {
+            conditionId: conditionsInfo[1].conditionId,
+            indexSet: parentIndexSet.toString()
+          }
+        ]
+      );
+
+      const collectionIds3 = partition3.map(indexSet =>
+        padLeft(
+          toHex(
+            toBN(
+              soliditySha3(
+                { type: 'bytes32', value: conditionsInfo[0].conditionId },
+                { type: 'uint', value: indexSet }
+              )
+            )
+              .add(parentCollectionIdBN)
+              .maskn(256)
+          ),
+          64
+        )
+      );
+
+      const positionIds3 = collectionIds3.map(collectionId =>
+        keccak256(collateralToken.address + collectionId.slice(2))
+      );
+
+      for (const [collectionId, indexSet] of collectionIds3.map((collectionId, i) => [
+        collectionId,
+        partition3[i]
+      ])) {
+        const collection = await getCollection(collectionId);
+        assert(collection, `collection ${collectionId} not found`);
+        assert.equal(collection.conditions.length, 2);
+        assert.equal(collection.indexSets.length, 2);
+        assert.sameDeepMembers(
+          collection.conditions.map((condition, i) => ({
+            conditionId: condition.id,
+            indexSet: collection.indexSets[i]
+          })),
+          [
+            {
+              conditionId: conditionsInfo[0].conditionId,
+              indexSet: indexSet.toString()
+            },
+            {
+              conditionId: conditionsInfo[1].conditionId,
+              indexSet: parentIndexSet.toString()
             }
-          }`
-        }
-      )).data.data;
-      assert(collection, `collection ${collectionId} not found`);
-      assert.equal(collection.conditions.length, collection.indexSets.length);
-      assert.equal(collection.conditions.length, 2);
-      const parentIndex = collection.conditions.findIndex(
-        ({ id }) => id === conditionsInfo[0].conditionId
-      );
-      assert.notEqual(parentIndex, -1);
-      // assert.equal(collection.indexSets[parentIndex], toBN(partition[0]).toString())
-      const cIndex = collection.conditions.findIndex(
-        ({ id }) => id === conditionsInfo[1].conditionId
-      );
-      assert.notEqual(cIndex, -1);
-      // assert.equal(collection.indexSets[cIndex], toBN(indexSet).toString())
-    }
+          ]
+        );
+      }
 
-    for (const [positionId, collectionId] of positionIds2.map((p, i) => [p, collectionIds2[i]])) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
-      const { position } = (await axios.post(
-        'http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets',
-        {
-          query: `{
-                    position(id: "${positionId}") {
-                        id
-                        collateralToken
-                        collection { id }
-                    }
-                }`
-        }
-      )).data.data;
+      for (const [positionId, collectionId, indexSet] of positionIds3.map((positionId, i) => [
+        positionId,
+        collectionIds3[i],
+        partition3[i]
+      ])) {
+        assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
+        const position = await getPosition(positionId);
 
-      assert(position, `position ${positionId} not found`);
-      assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
-      assert.equal(position.collection.id, collectionId);
+        assert.deepInclude(position, {
+          id: positionId,
+          collateralToken: collateralToken.address.toLowerCase(),
+          collection: {
+            id: collectionId
+          },
+          lifetimeValue: '100',
+          activeValue: '100'
+        });
+
+        assert.equal(position.conditions.length, position.indexSets.length);
+        assert.sameDeepMembers(
+          position.conditions.map((condition, i) => ({
+            conditionId: condition.id,
+            indexSet: position.indexSets[i]
+          })),
+          [
+            {
+              conditionId: conditionsInfo[0].conditionId,
+              indexSet: indexSet.toString()
+            },
+            {
+              conditionId: conditionsInfo[1].conditionId,
+              indexSet: parentIndexSet.toString()
+            }
+          ]
+        );
+      }
     }
   });
 });
