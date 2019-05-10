@@ -1,9 +1,7 @@
 const { assert } = require('chai');
 const axios = require('axios');
 const delay = require('delay');
-const { execSync, spawnSync } = require('child_process');
 const TruffleContract = require('truffle-contract');
-const { add } = require('bn.js');
 
 const PredictionMarketSystem = TruffleContract(
   require('@gnosis.pm/hg-contracts/build/contracts/PredictionMarketSystem.json')
@@ -14,7 +12,6 @@ const ERC20Mintable = TruffleContract(
 [PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'));
 const web3 = PredictionMarketSystem.web3;
 const { randomHex, soliditySha3, toHex, toBN, padLeft, keccak256 } = web3.utils;
-const { log, error } = console;
 
 async function waitForGraphSync(targetBlockNumber) {
   if (targetBlockNumber == null) {
@@ -84,25 +81,21 @@ describe('Complete scenario tests for accurate mappings', function() {
   });
 
   it('Should keep track of the mappings properly', async () => {
-    const [creator, oracle, trader, trader2, newbie] = accounts;
+    const [trader, trader2] = accounts;
     await collateralToken.mint(trader, 100, { from: minter });
     assert.equal(await collateralToken.balanceOf(trader), 100);
     await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
     const partition = [0b110, 0b01];
 
-    try {
-      await predictionMarketSystem.splitPosition(
-        collateralToken.address,
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-        globalConditionId,
-        partition,
-        50,
-        { from: trader }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message:', e.message);
-    }
+    await predictionMarketSystem.splitPosition(
+      collateralToken.address,
+      '0x0000000000000000000000000000000000000000000000000000000000000000',
+      globalConditionId,
+      partition,
+      50,
+      { from: trader }
+    );
+    await waitForGraphSync();
 
     const collectionIds = partition.map(indexSet =>
       keccak256(globalConditionId + padLeft(toHex(indexSet), 64).slice(2))
@@ -176,19 +169,17 @@ describe('Complete scenario tests for accurate mappings', function() {
     // split a position from another collectionId --> make sure split adds the all the new UserPosition balances AND subtracts from the former UserPosition
     const collectionToSplitOn = collectionIds[0];
     const collectionNotSplitOn = collectionIds[1];
-    try {
-      await predictionMarketSystem.splitPosition(
-        collateralToken.address,
-        collectionToSplitOn,
-        globalConditionId2,
-        partition,
-        25,
-        { from: trader }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message: ', e.message);
-    }
+
+    await predictionMarketSystem.splitPosition(
+      collateralToken.address,
+      collectionToSplitOn,
+      globalConditionId2,
+      partition,
+      25,
+      { from: trader }
+    );
+    await waitForGraphSync();
+
     const collectionIds2 = partition.map(
       indexSet =>
         '0x' +
@@ -299,19 +290,16 @@ describe('Complete scenario tests for accurate mappings', function() {
     // split 6 into 4 and 2
     const partition2 = [0b100, 0b10];
 
-    try {
-      await predictionMarketSystem.splitPosition(
-        collateralToken.address,
-        '0x00',
-        globalConditionId,
-        partition2,
-        5,
-        { from: trader }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message: ', e.message);
-    }
+    await predictionMarketSystem.splitPosition(
+      collateralToken.address,
+      '0x00',
+      globalConditionId,
+      partition2,
+      5,
+      { from: trader }
+    );
+    await waitForGraphSync();
+
     const collectionIds3 = partition2.map(indexSet =>
       keccak256(globalConditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
@@ -342,6 +330,8 @@ describe('Complete scenario tests for accurate mappings', function() {
       [...positionIds, ...positionIds2, ...positionIds3]
     );
 
+    let positionGraphData;
+
     for (const [positionId, collectionId] of positionIds3.map((p, i) => [p, collectionIds3[i]])) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 5);
       const userPositionId = (trader + positionId.slice(2)).toLowerCase();
@@ -355,7 +345,7 @@ describe('Complete scenario tests for accurate mappings', function() {
       assert.equal(userPositionGraphData.position.id, positionId);
       assert.equal(userPositionGraphData.user.id, trader.toLowerCase());
 
-      let positionGraphData = (await axios.post(
+      positionGraphData = (await axios.post(
         `http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets`,
         {
           query: `{position(id: "${positionId}") {collateralToken collection { id } conditions { id } indexSets { id } lifetimeValue activeValue}}`
@@ -390,19 +380,15 @@ describe('Complete scenario tests for accurate mappings', function() {
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
     // SECTION: Tests for merging tokens
-    try {
-      await predictionMarketSystem.mergePositions(
-        collateralToken.address,
-        '0x00',
-        globalConditionId,
-        partition2,
-        5,
-        { from: trader }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message: ', e.message);
-    }
+    await predictionMarketSystem.mergePositions(
+      collateralToken.address,
+      '0x00',
+      globalConditionId,
+      partition2,
+      5,
+      { from: trader }
+    );
+    await waitForGraphSync();
 
     for (const [positionId, collectionId] of positionIds3.map((p, i) => [p, collectionIds3[i]])) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 0);
@@ -417,7 +403,7 @@ describe('Complete scenario tests for accurate mappings', function() {
       assert.equal(userPositionGraphData.position.id, positionId);
       assert.equal(userPositionGraphData.user.id, trader.toLowerCase());
 
-      let positionGraphData = (await axios.post(
+      positionGraphData = (await axios.post(
         `http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets`,
         {
           query: `{position(id: "${positionId}") {collateralToken collection { id } conditions { id } indexSets { id } lifetimeValue activeValue}}`
@@ -436,19 +422,15 @@ describe('Complete scenario tests for accurate mappings', function() {
       assert.lengthOf(positionGraphData.indexSets, 2);
     }
 
-    try {
-      await predictionMarketSystem.mergePositions(
-        collateralToken.address,
-        collectionToSplitOn,
-        globalConditionId2,
-        partition,
-        5,
-        { from: trader }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message: ', e.message);
-    }
+    await predictionMarketSystem.mergePositions(
+      collateralToken.address,
+      collectionToSplitOn,
+      globalConditionId2,
+      partition,
+      5,
+      { from: trader }
+    );
+    await waitForGraphSync();
 
     for (const [positionId, collectionId] of positionIds2.map((posId, i) => [
       posId,
@@ -504,19 +486,15 @@ describe('Complete scenario tests for accurate mappings', function() {
     assert.lengthOf(positionGraphData.position.conditions, 1);
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
-    try {
-      await predictionMarketSystem.mergePositions(
-        collateralToken.address,
-        '0x00',
-        globalConditionId,
-        partition,
-        10,
-        { from: trader }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message: ', e.message);
-    }
+    await predictionMarketSystem.mergePositions(
+      collateralToken.address,
+      '0x00',
+      globalConditionId,
+      partition,
+      10,
+      { from: trader }
+    );
+    await waitForGraphSync();
 
     positionGraphData = (await axios.post(
       `http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets`,
@@ -671,18 +649,14 @@ describe('Complete scenario tests for accurate mappings', function() {
       assert.lengthOf(positionGraphData.indexSets, 2);
     }
 
-    try {
-      await predictionMarketSystem.redeemPositions(
-        collateralToken.address,
-        collectionToSplitOn,
-        globalConditionId2,
-        partition,
-        { from: trader2 }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message: ', e.message);
-    }
+    await predictionMarketSystem.redeemPositions(
+      collateralToken.address,
+      collectionToSplitOn,
+      globalConditionId2,
+      partition,
+      { from: trader2 }
+    );
+    await waitForGraphSync();
 
     positionGraphData = (await axios.post(
       `http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets`,
@@ -702,18 +676,14 @@ describe('Complete scenario tests for accurate mappings', function() {
     assert.equal(positionGraphData.userPosition.balance, 15);
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
-    try {
-      await predictionMarketSystem.redeemPositions(
-        collateralToken.address,
-        '0x00',
-        globalConditionId,
-        partition,
-        { from: trader2 }
-      );
-      await waitForGraphSync();
-    } catch (e) {
-      console.log('message: ', e.message);
-    }
+    await predictionMarketSystem.redeemPositions(
+      collateralToken.address,
+      '0x00',
+      globalConditionId,
+      partition,
+      { from: trader2 }
+    );
+    await waitForGraphSync();
 
     positionGraphData = (await axios.post(
       `http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets`,

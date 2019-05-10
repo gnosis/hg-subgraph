@@ -31,8 +31,8 @@ export function concat(a: ByteArray, b: ByteArray): ByteArray {
 }
 
 export function checkIfValueExistsInArray(
-  participatedConditions: String[],
-  condition: String
+  participatedConditions: string[],
+  condition: string
 ): boolean {
   for (let i = 0; i < participatedConditions.length; i++) {
     if (participatedConditions[i] == condition) {

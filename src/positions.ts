@@ -1,20 +1,13 @@
-import { crypto, Address, BigInt, ByteArray, Bytes } from '@graphprotocol/graph-ts';
+import { crypto, Address, BigInt, Bytes } from '@graphprotocol/graph-ts';
 import {
   PositionSplit,
   PositionsMerge,
-  PayoutRedemption,
+  PayoutRedemption
 } from './types/PredictionMarketSystem/PredictionMarketSystem';
 
-import {
-  Condition,
-  User,
-  Collateral,
-  Collection,
-  Position,
-  UserPosition,
-} from './types/schema';
+import { Condition, User, Collateral, Collection, Position, UserPosition } from './types/schema';
 
-import { sum, zeroAsBigInt, bigIntToBytes32, concat, checkIfValueExistsInArray } from './utils'
+import { sum, zeroAsBigInt, bigIntToBytes32, concat, checkIfValueExistsInArray } from './utils';
 
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
   for (let i = 0; i < indexSet.length && 8 * i < outcomeSlotCount; i++) {
@@ -90,7 +83,7 @@ export function handlePositionSplit(event: PositionSplit): void {
   }
 
   // Add this condition to participated conditions if they haven't participated in it yet
-  if (!checkIfValueExistsInArray(user.participatedConditions as String[], conditionId)) {
+  if (!checkIfValueExistsInArray(user.participatedConditions as string[], conditionId)) {
     let userParticipatedConditions = user.participatedConditions;
     userParticipatedConditions[userParticipatedConditions.length] = conditionId;
     user.participatedConditions = userParticipatedConditions;
@@ -99,8 +92,8 @@ export function handlePositionSplit(event: PositionSplit): void {
   user.save();
 
   let parentIndexSet = sum(partition);
-  let parentConditions: Array<string>;
-  let parentIndexSets: Array<BigInt>;
+  let parentConditions: string[];
+  let parentIndexSets: BigInt[];
 
   if (isFullIndexSet(parentIndexSet, condition.outcomeSlotCount)) {
     if (isZeroCollectionId(params.parentCollectionId)) {
@@ -476,7 +469,7 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       if (totalIndexSetCollection == null) {
         totalIndexSetCollection = new Collection(totalIndexSetCollectionId.toHex());
         totalIndexSetCollection.conditions = totalIndexSetCollectionConditions;
-        totalIndexSetCollectionIndexSets = totalIndexSetCollectionIndexSets;
+        // totalIndexSetCollectionIndexSets = totalIndexSetCollectionIndexSets;
         totalIndexSetCollection.save();
       }
       // Position Section
@@ -540,7 +533,6 @@ export function handlePositionsMerge(event: PositionsMerge): void {
 export function handlePayoutRedemption(event: PayoutRedemption): void {
   let params = event.params;
   let indexSets = params.indexSets;
-  let conditionId = params.conditionId.toHex();
 
   // User Section
   let user = User.load(params.redeemer.toHex());

@@ -2,14 +2,12 @@ import { BigInt } from '@graphprotocol/graph-ts';
 
 import {
   ConditionPreparation,
-  ConditionResolution,
+  ConditionResolution
 } from './types/PredictionMarketSystem/PredictionMarketSystem';
 
-import {
-  Condition,
-} from './types/schema';
+import { Condition } from './types/schema';
 
-import { sum } from './utils'
+import { sum } from './utils';
 
 export function handleConditionPreparation(event: ConditionPreparation): void {
   let condition = new Condition(event.params.conditionId.toHex());

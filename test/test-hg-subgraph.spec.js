@@ -160,7 +160,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       keccak256(collateralToken.address + collectionId.slice(2))
     );
 
-    for (positionId of positionIds) {
+    for (const positionId of positionIds) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
     }
 
@@ -240,17 +240,17 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     await waitForGraphSync();
 
-    for (const [collectionId, indexSet] of collectionIds2.map((c, i) => [c, partition[i]])) {
+    for (const collectionId of collectionIds2) {
       const { collection } = (await axios.post(
         'http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets',
         {
           query: `{
-                    collection(id: "${collectionId}") {
-                        id
-                        conditions { id }
-                        indexSets
-                    }
-                }`
+            collection(id: "${collectionId}") {
+              id
+              conditions { id }
+              indexSets
+            }
+          }`
         }
       )).data.data;
       assert(collection, `collection ${collectionId} not found`);

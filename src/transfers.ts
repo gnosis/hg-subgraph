@@ -5,14 +5,9 @@ import {
   TransferBatch
 } from './types/PredictionMarketSystem/PredictionMarketSystem';
 
-import {
-  User,
-  Position,
-  UserPosition,
-  Operator
-} from './types/schema';
+import { User, Position, UserPosition, Operator } from './types/schema';
 
-import { bigIntToBytes32, concat, checkIfValueExistsInArray, zeroAsBigInt, sum } from './utils'
+import { bigIntToBytes32, concat, checkIfValueExistsInArray, zeroAsBigInt, sum } from './utils';
 
 export function handleTransferSingle(event: TransferSingle): void {
   let params = event.params;
@@ -38,7 +33,7 @@ export function handleTransferSingle(event: TransferSingle): void {
   for (var q = 0; q < clonePositionsConditions.length; q++) {
     if (
       !checkIfValueExistsInArray(
-        _toUser.participatedConditions as String[],
+        _toUser.participatedConditions as string[],
         clonePositionsConditions[q]
       )
     ) {
@@ -123,7 +118,7 @@ export function handleTransferBatch(event: TransferBatch): void {
     for (var q = 0; q < clonedPositionConditions.length; q++) {
       if (
         !checkIfValueExistsInArray(
-          _toUser.participatedConditions as String[],
+          _toUser.participatedConditions as string[],
           clonedPositionConditions[q]
         )
       ) {
@@ -166,10 +161,10 @@ export function handleTransferBatch(event: TransferBatch): void {
   }
   operator.totalValueTransferred = operator.totalValueTransferred.plus(summedValue);
   let clonedOperatorAssociatedAccounts = operator.associatedAccounts;
-  if (!checkIfValueExistsInArray(operator.associatedAccounts as String[], params._to.toHex())) {
+  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params._to.toHex())) {
     clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params._to.toHex();
   }
-  if (!checkIfValueExistsInArray(operator.associatedAccounts as String[], params._from.toHex())) {
+  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params._from.toHex())) {
     clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params._from.toHex();
   }
   operator.lastActive = event.block.timestamp;
