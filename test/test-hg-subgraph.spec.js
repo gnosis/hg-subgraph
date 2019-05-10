@@ -61,60 +61,92 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       { type: 'bytes32', value: questionId },
       { type: 'uint', value: outcomeSlotCount }
     );
-    await predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
+
+    const {
+      tx: createTransaction,
+      receipt: { blockNumber: createBlockNumber }
+    } = await predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
       from: creator
     });
 
+    const { timestamp: creationTimestamp } = await web3.eth.getBlock(createBlockNumber);
+
     await waitForGraphSync();
+
+    const conditionQuery = `{
+      condition(id:"${conditionId}") {
+        id
+        creator
+        oracle
+        questionId
+        outcomeSlotCount
+        resolved
+        payoutNumerators
+        payoutDenominator
+        createTransaction
+        creationTimestamp
+        resolveTransaction
+        resolveTimestamp
+        blockNumber
+        collections
+      }
+    }`;
 
     let { condition } = (await axios.post(
       'http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets',
-      {
-        query: `{
-                condition(id:"${conditionId}") {
-                    creator
-                    oracle
-                    questionId
-                    outcomeSlotCount
-                    resolved
-                    payoutNumerators
-                    payoutDenominator
-                }
-            }`
-      }
+      { query: conditionQuery }
     )).data.data;
 
-    assert(condition, 'condition not found');
-    assert.equal(condition.creator, creator.toLowerCase());
-    assert.equal(condition.oracle, oracle.toLowerCase());
-    assert.equal(condition.questionId, questionId);
-    assert.equal(condition.outcomeSlotCount, outcomeSlotCount);
-    assert(!condition.resolved);
-    assert.equal(condition.payoutNumerators, null);
-    assert.equal(condition.payoutDenominator, null);
-
-    await predictionMarketSystem.receiveResult(
+    assert.deepEqual(condition, {
+      id: conditionId,
+      creator: creator.toLowerCase(),
+      oracle: oracle.toLowerCase(),
       questionId,
-      '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000',
+      outcomeSlotCount,
+      resolved: false,
+      payoutNumerators: null,
+      payoutDenominator: null,
+      createTransaction,
+      creationTimestamp: creationTimestamp.toString(),
+      resolveTransaction: null,
+      resolveTimestamp: null,
+      blockNumber: createBlockNumber.toString(),
+      collections: []
+    });
+
+    const payoutNumerators = [0, 1, 0];
+    const {
+      tx: resolveTransaction,
+      receipt: { blockNumber: resolveBlockNumber }
+    } = await predictionMarketSystem.receiveResult(
+      questionId,
+      web3.eth.abi.encodeParameters(new Array(outcomeSlotCount).fill('uint256'), payoutNumerators),
       { from: oracle }
     );
+    const { timestamp: resolutionTimestamp } = await web3.eth.getBlock(resolveBlockNumber);
 
     await waitForGraphSync();
 
     condition = (await axios.post('http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets', {
-      query: `{
-                condition(id: "${conditionId}") {
-                    resolved
-                    payoutNumerators
-                    payoutDenominator
-                }
-            }`
+      query: conditionQuery
     })).data.data.condition;
 
-    assert(condition.resolved);
-    assert.equal(condition.payoutDenominator, 1);
-    const expectedNumerators = [0, 1, 0];
-    condition.payoutNumerators.forEach((num, i) => assert.equal(num, expectedNumerators[i]));
+    assert.deepEqual(condition, {
+      id: conditionId,
+      creator: creator.toLowerCase(),
+      oracle: oracle.toLowerCase(),
+      questionId,
+      outcomeSlotCount,
+      resolved: true,
+      payoutNumerators: payoutNumerators.map(x => x.toString()),
+      payoutDenominator: payoutNumerators.reduce((a, b) => a + b, 0).toString(),
+      createTransaction,
+      creationTimestamp: creationTimestamp.toString(),
+      resolveTransaction: resolveTransaction,
+      resolveTimestamp: resolutionTimestamp.toString(),
+      blockNumber: createBlockNumber.toString(),
+      collections: []
+    });
   });
 
   it('will collect info from splitting and merging positions', async () => {
