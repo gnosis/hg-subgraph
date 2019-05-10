@@ -171,7 +171,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     });
   });
 
-  it('will collect info from splitting and merging positions', async () => {
+  it('will handle a normal complete split', async () => {
     const [creator, oracle, trader] = accounts;
     const conditionsInfo = Array.from({ length: 2 }, () => {
       const questionId = randomHex(32);
@@ -196,9 +196,6 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     assert.equal(await collateralToken.balanceOf(trader), 100);
 
     await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
-
-    // normal complete split
-    // =====================
 
     const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map(indexSet =>
       toBN(indexSet)
@@ -257,9 +254,53 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         activeValue: '100'
       });
     }
+  });
 
-    // deep complete splits
-    // ====================
+  it('will handle a deep complete split', async () => {
+    const [creator, oracle, trader] = accounts;
+    const conditionsInfo = Array.from({ length: 2 }, () => {
+      const questionId = randomHex(32);
+      const outcomeSlotCount = 68;
+      const conditionId = soliditySha3(
+        { type: 'address', value: oracle },
+        { type: 'bytes32', value: questionId },
+        { type: 'uint', value: outcomeSlotCount }
+      );
+      return { questionId, outcomeSlotCount, conditionId };
+    });
+
+    await Promise.all(
+      conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
+        predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
+          from: creator
+        })
+      )
+    );
+
+    await collateralToken.mint(trader, 100, { from: minter });
+    assert.equal(await collateralToken.balanceOf(trader), 100);
+
+    await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
+
+    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map(indexSet =>
+      toBN(indexSet)
+    );
+    await predictionMarketSystem.splitPosition(
+      collateralToken.address,
+      `0x${'00'.repeat(32)}`,
+      conditionsInfo[0].conditionId,
+      partition1,
+      100,
+      { from: trader }
+    );
+
+    const collectionIds = partition1.map(indexSet =>
+      keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
+    );
+
+    const positionIds = collectionIds.map(collectionId =>
+      keccak256(collateralToken.address + collectionId.slice(2))
+    );
 
     const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map(indexSet =>
       toBN(indexSet)
@@ -376,9 +417,64 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         );
       }
     }
+  });
 
-    // deep partial splits
-    // ===================
+  it('will handle a deep partial split', async () => {
+    const [creator, oracle, trader] = accounts;
+    const conditionsInfo = Array.from({ length: 2 }, () => {
+      const questionId = randomHex(32);
+      const outcomeSlotCount = 68;
+      const conditionId = soliditySha3(
+        { type: 'address', value: oracle },
+        { type: 'bytes32', value: questionId },
+        { type: 'uint', value: outcomeSlotCount }
+      );
+      return { questionId, outcomeSlotCount, conditionId };
+    });
+
+    await Promise.all(
+      conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
+        predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
+          from: creator
+        })
+      )
+    );
+
+    await collateralToken.mint(trader, 100, { from: minter });
+    assert.equal(await collateralToken.balanceOf(trader), 100);
+
+    await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
+
+    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map(indexSet =>
+      toBN(indexSet)
+    );
+    await predictionMarketSystem.splitPosition(
+      collateralToken.address,
+      `0x${'00'.repeat(32)}`,
+      conditionsInfo[0].conditionId,
+      partition1,
+      100,
+      { from: trader }
+    );
+
+    const collectionIds = partition1.map(indexSet =>
+      keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
+    );
+
+    const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map(indexSet =>
+      toBN(indexSet)
+    );
+
+    for (const parentCollectionId of collectionIds) {
+      await predictionMarketSystem.splitPosition(
+        collateralToken.address,
+        parentCollectionId,
+        conditionsInfo[1].conditionId,
+        partition2,
+        100,
+        { from: trader }
+      );
+    }
 
     const partition3 = ['0xaaaaaaaa000000000', '0x55555555000000000'].map(indexSet =>
       toBN(indexSet)
