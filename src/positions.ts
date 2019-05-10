@@ -469,7 +469,7 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       if (totalIndexSetCollection == null) {
         totalIndexSetCollection = new Collection(totalIndexSetCollectionId.toHex());
         totalIndexSetCollection.conditions = totalIndexSetCollectionConditions;
-        // totalIndexSetCollectionIndexSets = totalIndexSetCollectionIndexSets;
+        totalIndexSetCollection.indexSets = totalIndexSetCollectionIndexSets;
         totalIndexSetCollection.save();
       }
       // Position Section
