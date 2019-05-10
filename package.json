@@ -19,7 +19,7 @@
     "migrate": "cd node_modules/@gnosis.pm/hg-contracts && echo 'module.exports={networks:{ganache:{host:\"localhost\",port:8545,network_id:\"*\"}}}' > truffle-local.js && truffle migrate --network=ganache --reset",
     "test": "npm run codegen && npm run deploy-local && mocha --exit",
     "create-deploy-local": "npm run create-local && npm run deploy-local",
-    "create-test-pipeline": "npm run docker:down && npm run docker:up && npm run migrate && sleep 9s && npm run create-deploy-local && npx mocha test/completeScenario.spec.js --exit"
+    "create-test-pipeline": "npm run docker:down && npm run docker:up && npm run migrate && npm run create-local"
   },
   "devDependencies": {
     "@gnosis.pm/hg-contracts": "^0.2.2",
