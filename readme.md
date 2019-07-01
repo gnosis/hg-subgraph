@@ -20,6 +20,10 @@ Before the subgraph can be deployed to the main graph node, you must create the 
 
 5.  create the subgraph name desired in `package.json` under the `create` and `deploy` scripts.
 
+6. npm run codegen
+
+7. npm run build
+
 6.  npm run create
 
 7.  npm run deploy
