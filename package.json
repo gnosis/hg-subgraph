@@ -19,7 +19,7 @@
     "migrate": "cd node_modules/@gnosis.pm/hg-contracts && echo 'module.exports={networks:{ganache:{host:\"localhost\",port:8545,network_id:\"*\"}}}' > truffle-local.js && truffle migrate --network=ganache --reset",
     "test": "npm run codegen && npm run deploy-local && mocha --exit",
     "create-deploy-local": "npm run create-local && npm run deploy-local",
-    "create-test-pipeline": "npm run docker:down && npm run docker:up && npm run migrate && npm run create-local"
+    "create-test-pipeline": "npm run docker:down && npm run docker:up && wait-on tcp:8545 && npm run migrate && wait-on http-get://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets/graphql && npm run create-local"
   },
   "devDependencies": {
     "@gnosis.pm/hg-contracts": "^0.2.2",
@@ -45,7 +45,8 @@
     "openzeppelin-solidity": "^2.2.0",
     "prettier": "^1.17.0",
     "tmp": "^0.1.0",
-    "typescript": "^3.4.5"
+    "typescript": "^3.4.5",
+    "wait-on": "^4.0.0"
   },
   "dependencies": {
     "babel-polyfill": "^6.26.0",
