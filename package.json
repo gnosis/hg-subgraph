@@ -1,5 +1,6 @@
 {
-  "name": "Gnosis-Markets-Subgraph",
+  "name": "hg-subgraph",
+  "private": true,
   "version": "0.1.0",
   "author": "Gnosis (https://gnosis.pm)",
   "description": "A subgraph for Gnosis Markets",
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "@gnosis.pm/hg-contracts": "^0.2.2",
-    "@graphprotocol/graph-cli": "^0.7.1",
+    "@graphprotocol/graph-cli": "^0.7.3",
     "@graphprotocol/graph-ts": "^0.5.0",
     "@typescript-eslint/eslint-plugin": "^1.7.0",
     "@typescript-eslint/parser": "^1.7.0",
