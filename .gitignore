@@ -8,4 +8,4 @@ src/types
 dist
 
 # ABI Files -- Created with `npm run refresh-abi`
-abis
+abis/

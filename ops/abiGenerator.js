@@ -1,11 +1,15 @@
-const fs = require('fs');
+const fs = require('fs-extra');
+const path = require('path');
 
-const contract = JSON.parse(
-  fs.readFileSync(
-    'node_modules/@gnosis.pm/hg-contracts/build/contracts/PredictionMarketSystem.json',
-    'utf8'
+const contractName = 'ConditionalTokens';
+const { abi } = fs.readJsonSync(
+  path.join(
+    'node_modules',
+    '@gnosis.pm',
+    'conditional-tokens-contracts',
+    'build',
+    'contracts',
+    `${contractName}.json`
   )
 );
-
-fs.writeFileSync('./abis/PredictionMarketSystem.json', JSON.stringify(contract.abi));
-console.log(JSON.stringify(contract.abi));
+fs.outputJsonSync(path.join('abis', `${contractName}.json`), abi, { spaces: 2 });

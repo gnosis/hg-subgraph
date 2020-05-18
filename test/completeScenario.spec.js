@@ -1,10 +1,10 @@
 const { assert } = require('chai');
 const axios = require('axios');
 const delay = require('delay');
-const TruffleContract = require('truffle-contract');
+const TruffleContract = require('@truffle/contract');
 
 const PredictionMarketSystem = TruffleContract(
-  require('@gnosis.pm/hg-contracts/build/contracts/PredictionMarketSystem.json')
+  require('@gnosis.pm/conditional-tokens-contracts/build/contracts/ConditionalTokens.json')
 );
 const ERC20Mintable = TruffleContract(
   require('openzeppelin-solidity/build/contracts/ERC20Mintable.json')
@@ -65,16 +65,12 @@ describe('Complete scenario tests for accurate mappings', function() {
       conditionsInfo[1].outcomeSlotCount,
       { from: creator }
     );
-    await predictionMarketSystem.receiveResult(
-      conditionsInfo[0].questionId,
-      '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000',
-      { from: oracle }
-    );
-    await predictionMarketSystem.receiveResult(
-      conditionsInfo[1].questionId,
-      '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000',
-      { from: oracle }
-    );
+    await predictionMarketSystem.reportPayouts(conditionsInfo[0].questionId, [0, 1, 0], {
+      from: oracle
+    });
+    await predictionMarketSystem.reportPayouts(conditionsInfo[1].questionId, [0, 1, 0], {
+      from: oracle
+    });
     globalConditionId = conditionsInfo[0].conditionId;
     globalConditionId2 = conditionsInfo[1].conditionId;
     await waitForGraphSync();

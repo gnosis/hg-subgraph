@@ -1,9 +1,9 @@
 const { assert } = require('chai');
 const axios = require('axios');
 const delay = require('delay');
-const TruffleContract = require('truffle-contract');
+const TruffleContract = require('@truffle/contract');
 const PredictionMarketSystem = TruffleContract(
-  require('@gnosis.pm/hg-contracts/build/contracts/PredictionMarketSystem.json')
+  require('@gnosis.pm/conditional-tokens-contracts/build/contracts/ConditionalTokens.json')
 );
 const ERC20Mintable = TruffleContract(
   require('openzeppelin-solidity/build/contracts/ERC20Mintable.json')
@@ -142,11 +142,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     const {
       tx: resolveTransaction,
       receipt: { blockNumber: resolveBlockNumber }
-    } = await predictionMarketSystem.receiveResult(
-      questionId,
-      web3.eth.abi.encodeParameters(new Array(outcomeSlotCount).fill('uint256'), payoutNumerators),
-      { from: oracle }
-    );
+    } = await predictionMarketSystem.reportPayouts(questionId, payoutNumerators, { from: oracle });
     const { timestamp: resolutionTimestamp } = await web3.eth.getBlock(resolveBlockNumber);
 
     await waitForGraphSync();
