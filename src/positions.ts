@@ -2,7 +2,8 @@ import { crypto, Address, BigInt, Bytes } from '@graphprotocol/graph-ts';
 import {
   PositionSplit,
   PositionsMerge,
-  PayoutRedemption
+  PayoutRedemption,
+  ConditionalTokens
 } from './types/ConditionalTokens/ConditionalTokens';
 
 import { Condition, User, Collateral, Collection, Position, UserPosition } from './types/schema';
@@ -24,36 +25,6 @@ function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
 function isZeroCollectionId(collectionId: Bytes): boolean {
   for (let i = 0; i < collectionId.length; i++) if (collectionId[i] !== 0) return false;
   return true;
-}
-
-function add256(a: Bytes, b: Bytes): Bytes {
-  let aBigInt = new Uint8Array(32) as BigInt;
-  let bBigInt = new Uint8Array(32) as BigInt;
-
-  aBigInt.fill(0);
-  for (let i = 0; i < a.length && i < 32; i++) {
-    aBigInt[i] = a[a.length - 1 - i];
-  }
-
-  bBigInt.fill(0);
-  for (let i = 0; i < b.length && i < 32; i++) {
-    bBigInt[i] = b[b.length - 1 - i];
-  }
-
-  let sumBigInt = aBigInt.plus(bBigInt);
-  return bigIntToBytes32(sumBigInt);
-}
-
-function toCollectionId(conditionId: Bytes, indexSet: BigInt): Bytes {
-  let hashPayload = new Uint8Array(64);
-  hashPayload.fill(0);
-  for (let i = 0; i < conditionId.length && i < 32; i++) {
-    hashPayload[i] = conditionId[i];
-  }
-  for (let i = 0; i < indexSet.length && i < 32; i++) {
-    hashPayload[63 - i] = indexSet[i];
-  }
-  return crypto.keccak256(hashPayload as Bytes) as Bytes;
 }
 
 function toPositionId(collateralToken: Address, collectionId: Bytes): Bytes {
@@ -95,6 +66,8 @@ export function handlePositionSplit(event: PositionSplit): void {
   let parentConditions: string[];
   let parentIndexSets: BigInt[];
 
+  let conditionalTokens = ConditionalTokens.bind(event.address);
+
   if (isFullIndexSet(parentIndexSet, condition.outcomeSlotCount)) {
     if (isZeroCollectionId(params.parentCollectionId)) {
       let collateralToken = Collateral.load(params.collateralToken.toHex());
@@ -114,10 +87,7 @@ export function handlePositionSplit(event: PositionSplit): void {
       parentIndexSets = parentCollection.indexSets;
     }
   } else {
-    let collectionId = add256(
-      params.parentCollectionId,
-      toCollectionId(params.conditionId, parentIndexSet)
-    );
+    let collectionId = conditionalTokens.getCollectionId(params.parentCollectionId, params.conditionId, parentIndexSet);
     let parentCollection = Collection.load(collectionId.toHex());
     parentConditions = new Array<string>(parentCollection.conditions.length - 1);
     parentIndexSets = new Array<BigInt>(parentConditions.length);
@@ -140,9 +110,10 @@ export function handlePositionSplit(event: PositionSplit): void {
 
       for (let i = 0; i < partition.length; i++) {
         // Collection Section
-        let collectionId = add256(
+        let collectionId = conditionalTokens.getCollectionId(
           params.parentCollectionId,
-          toCollectionId(params.conditionId, partition[i])
+          params.conditionId,
+          partition[i],
         );
         let collection = Collection.load(collectionId.toHex());
         if (collection == null) {
@@ -200,9 +171,10 @@ export function handlePositionSplit(event: PositionSplit): void {
       // This branch covers a full splitPosition with a parentCollectionId
       for (let i = 0; i < partition.length; i++) {
         // Collection Section
-        let collectionId = add256(
+        let collectionId = conditionalTokens.getCollectionId(
           params.parentCollectionId,
-          toCollectionId(params.conditionId, partition[i])
+          params.conditionId,
+          partition[i],
         );
         let collection = Collection.load(collectionId.toHex());
         if (collection == null) {
@@ -273,9 +245,10 @@ export function handlePositionSplit(event: PositionSplit): void {
     // This branch covers a non-full indexSet
     for (let i = 0; i < partition.length; i++) {
       // Collection Section
-      let collectionId = add256(
+      let collectionId = conditionalTokens.getCollectionId(
         params.parentCollectionId,
-        toCollectionId(params.conditionId, partition[i])
+        params.conditionId,
+        partition[i],
       );
       let collection = Collection.load(collectionId.toHex());
       if (collection == null) {
@@ -331,9 +304,10 @@ export function handlePositionSplit(event: PositionSplit): void {
     }
 
     // Union Position Section
-    let parentCollectionId = add256(
+    let parentCollectionId = conditionalTokens.getCollectionId(
       params.parentCollectionId,
-      toCollectionId(params.conditionId, sum(partition))
+      params.conditionId,
+      sum(partition),
     );
     let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
     let parentPosition = Position.load(parentPositionId.toHex());
@@ -365,6 +339,8 @@ export function handlePositionsMerge(event: PositionsMerge): void {
   user.lastActive = event.block.timestamp;
   user.save();
 
+  let conditionalTokens = ConditionalTokens.bind(event.address);
+
   // This likewise splits into 3 sections (split fullIndexSet without a parent, split fullIndexSet with a parent, split partial indexSet)
   if (isFullIndexSet(totalIndexSet, condition.outcomeSlotCount)) {
     // Section: Covers merging a fullIndexSet without a parentCollection back into collateral
@@ -376,9 +352,10 @@ export function handlePositionsMerge(event: PositionsMerge): void {
 
       for (var i = 0; i < partition.length; i++) {
         // The collections and positions for this section have already been made by splitPosition event
-        let collectionId = add256(
+        let collectionId = conditionalTokens.getCollectionId(
           params.parentCollectionId,
-          toCollectionId(params.conditionId, partition[i])
+          params.conditionId,
+          partition[i],
         );
         // Position Section
         let positionId = toPositionId(params.collateralToken, collectionId);
@@ -395,9 +372,10 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       // Section: Covers merging a fullIndexSet with a parentCollection into the parentCollection
       for (var j = 0; j < partition.length; j++) {
         // The collections and positions for this section have already been made by splitPosition event
-        let collectionId = add256(
+        let collectionId = conditionalTokens.getCollectionId(
           params.parentCollectionId,
-          toCollectionId(params.conditionId, partition[j])
+          params.conditionId,
+          partition[j],
         );
         // Position Section
         let positionId = toPositionId(params.collateralToken, collectionId);
@@ -436,9 +414,10 @@ export function handlePositionsMerge(event: PositionsMerge): void {
 
     // Here, some extra details such as Collection and Position have to be created, because it's possible it didn't exist yet from splitPosition alone
     // Union Position & Collection & UserPosition Section
-    let totalIndexSetCollectionId = add256(
+    let totalIndexSetCollectionId = conditionalTokens.getCollectionId(
       params.parentCollectionId,
-      toCollectionId(params.conditionId, totalIndexSet)
+      params.conditionId,
+      totalIndexSet,
     );
     let totalIndexSetPositionId = toPositionId(params.collateralToken, totalIndexSetCollectionId);
     let totalIndexSetPosition = Position.load(totalIndexSetPositionId.toHex());
@@ -487,7 +466,11 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     // Union UserPosition Section
     let unionPositionId = toPositionId(
       params.collateralToken,
-      toCollectionId(params.conditionId, totalIndexSet)
+      conditionalTokens.getCollectionId(
+        params.parentCollectionId,
+        params.conditionId,
+        totalIndexSet,
+      ),
     );
     let unionUserPositionId = concat(params.stakeholder, unionPositionId) as Bytes;
     let unionUserPosition = UserPosition.load(unionUserPositionId.toHex());
@@ -505,9 +488,10 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     for (var k = 0; k < partition.length; k++) {
       partitionCopy[k] = partition[k];
 
-      let collectionId = add256(
+      let collectionId = conditionalTokens.getCollectionId(
         params.parentCollectionId,
-        toCollectionId(params.conditionId, partitionCopy[k])
+        params.conditionId,
+        partitionCopy[k],
       );
       // Position Section
       let positionId = toPositionId(params.collateralToken, collectionId);
@@ -571,10 +555,12 @@ export function handlePayoutRedemption(event: PayoutRedemption): void {
     parentPositionUserPosition.save();
   }
   // put all the UserPositions from the indexSet list to 0 -- make sure position.activeValue can be subtracted by the balance before this happens
+  let conditionalTokens = ConditionalTokens.bind(event.address);
   for (var i = 0; i < indexSets.length; i++) {
-    let collectionId = add256(
+    let collectionId = conditionalTokens.getCollectionId(
       params.parentCollectionId,
-      toCollectionId(params.conditionId, indexSets[i])
+      params.conditionId,
+      indexSets[i],
     );
     let positionId = toPositionId(params.collateralToken, collectionId);
     let userPositionId = concat(params.redeemer, positionId) as Bytes;

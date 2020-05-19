@@ -1,17 +1,21 @@
 type Condition @entity {
   id: ID!
-  creator: Bytes!
+
   oracle: Bytes!
   questionId: Bytes!
   outcomeSlotCount: Int!
-  resolved: Boolean!
-  payoutNumerators: [BigInt!]
-  payoutDenominator: BigInt
+
+  creator: Bytes!
   createTransaction: Bytes!
   creationTimestamp: BigInt!
+  creationBlockNumber: BigInt
+
+  resolved: Boolean!
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
-  blockNumber: BigInt
+  payoutNumerators: [BigInt!]
+  payoutDenominator: BigInt
+
   collections: [Collection!] @derivedFrom(field: "conditions")
 }
 
@@ -44,14 +48,6 @@ type User @entity {
  participatedConditions: [Condition!]
  firstParticipation: BigInt!
  lastActive: BigInt!
-}
-
-type Operator @entity {
-  id: ID!
-  totalValueTransferred: BigInt
-  associatedAccounts: [User!]! 
-  firstParticipation: BigInt!
-  lastActive: BigInt!
 }
 
 type Collateral @entity {

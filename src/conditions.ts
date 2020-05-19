@@ -18,7 +18,7 @@ export function handleConditionPreparation(event: ConditionPreparation): void {
   condition.resolved = false;
   condition.createTransaction = event.transaction.hash;
   condition.creationTimestamp = event.block.timestamp;
-  condition.blockNumber = event.block.number;
+  condition.creationBlockNumber = event.block.number;
   condition.save();
 }
 

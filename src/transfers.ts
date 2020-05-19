@@ -1,13 +1,13 @@
-import { BigInt, Bytes } from '@graphprotocol/graph-ts';
+import { Bytes } from '@graphprotocol/graph-ts';
 
 import {
   TransferSingle,
   TransferBatch
 } from './types/ConditionalTokens/ConditionalTokens';
 
-import { User, Position, UserPosition, Operator } from './types/schema';
+import { User, Position, UserPosition } from './types/schema';
 
-import { bigIntToBytes32, concat, checkIfValueExistsInArray, zeroAsBigInt, sum } from './utils';
+import { bigIntToBytes32, concat, checkIfValueExistsInArray, zeroAsBigInt } from './utils';
 
 export function handleTransferSingle(event: TransferSingle): void {
   let params = event.params;
@@ -58,38 +58,25 @@ export function handleTransferSingle(event: TransferSingle): void {
   }
   toUserPosition.balance = toUserPosition.balance.plus(params.value);
   toUserPosition.save();
-
-  // Update the Operator
-  let operator = Operator.load(params.operator.toHex());
-  if (operator == null) {
-    operator = new Operator(params.operator.toHex());
-    operator.totalValueTransferred = zeroAsBigInt;
-    operator.associatedAccounts = [];
-    operator.firstParticipation = event.block.timestamp;
-    operator.lastActive = event.block.timestamp;
-  }
-  operator.totalValueTransferred = operator.totalValueTransferred.plus(params.value);
-  let clonedOperatorAssociatedAccounts = operator.associatedAccounts;
-  if (!checkIfValueExistsInArray(clonedOperatorAssociatedAccounts, params.to.toHex())) {
-    clonedOperatorAssociatedAccounts[clonedOperatorAssociatedAccounts.length] = params.to.toHex();
-  }
-  if (!checkIfValueExistsInArray(clonedOperatorAssociatedAccounts, params.from.toHex())) {
-    clonedOperatorAssociatedAccounts[
-      clonedOperatorAssociatedAccounts.length
-    ] = params.from.toHex();
-  }
-  operator.lastActive = event.block.timestamp;
-  operator.associatedAccounts = clonedOperatorAssociatedAccounts;
-  operator.save();
 }
 
 export function handleTransferBatch(event: TransferBatch): void {
   let params = event.params;
-  let summedValue = sum(params.values);
+
+  if (
+    params.from.toHex() == '0x0000000000000000000000000000000000000000' ||
+    params.to.toHex() == '0x0000000000000000000000000000000000000000'
+  ) return;
 
   // User Section
   let fromUser = User.load(params.from.toHex());
+  if (fromUser == null) {
+    fromUser = new User(params.from.toHex());
+    fromUser.firstParticipation = event.block.timestamp;
+    fromUser.participatedConditions = [];
+  }
   fromUser.lastActive = event.block.timestamp;
+  fromUser.save();
   let toUser = User.load(params.to.toHex());
   if (toUser == null) {
     toUser = new User(params.to.toHex());
@@ -99,19 +86,13 @@ export function handleTransferBatch(event: TransferBatch): void {
   toUser.lastActive = event.block.timestamp;
   toUser.save();
 
-  // Copies of variables for AssemblyScript memory
-
-  let _positionIds = params.ids;
-  let values = params.values;
-  let copyPositionIds = new Array<BigInt>(params.ids.length);
-  let copyValues = new Array<BigInt>(params.values.length);
-
+  let positionIds = params.ids;
+  let transferValues = params.values;
 
   for (var i = 0; i < params.ids.length; i++) {
-    copyPositionIds[i] = _positionIds[i];
-    copyValues[i] = values[i];
-
-    let clonedPosition = Position.load(copyPositionIds[i].toHex());
+    let positionId = positionIds[i];
+    let transferValue = transferValues[i];
+    let clonedPosition = Position.load(positionId.toHex());
     if (!Array.isArray(clonedPosition.conditions)) {
       clonedPosition.conditions = [];
     }
@@ -133,43 +114,22 @@ export function handleTransferBatch(event: TransferBatch): void {
     }
 
     // from UserPosition Section
-    let bytesPositionId = bigIntToBytes32(copyPositionIds[i]);
+    let bytesPositionId = bigIntToBytes32(positionId);
     let fromUserPositionId = concat(params.from, bytesPositionId) as Bytes;
     let fromUserPosition = UserPosition.load(fromUserPositionId.toHex());
-    fromUserPosition.balance = fromUserPosition.balance.minus(copyValues[i]);
+    fromUserPosition.balance = fromUserPosition.balance.minus(transferValue);
     fromUserPosition.save();
     // to UserPosition Section
-    let toUserPositionId = concat(params.to, bigIntToBytes32(copyPositionIds[i])) as Bytes;
+    let toUserPositionId = concat(params.to, bytesPositionId) as Bytes;
     let toUserPosition = UserPosition.load(toUserPositionId.toHex());
     if (toUserPosition == null) {
       toUserPosition = new UserPosition(toUserPositionId.toHex());
       toUserPosition.user = toUser.id;
-      let position = Position.load(bigIntToBytes32(copyPositionIds[i]).toHex());
+      let position = Position.load(bytesPositionId.toHex());
       toUserPosition.position = position.id;
       toUserPosition.balance = zeroAsBigInt;
     }
-    toUserPosition.balance = toUserPosition.balance.plus(copyValues[i]);
+    toUserPosition.balance = toUserPosition.balance.plus(transferValue);
     toUserPosition.save();
   }
-
-  // Operator Section
-  let operator = Operator.load(params.operator.toHex());
-  if (operator == null) {
-    operator = new Operator(params.operator.toHex());
-    operator.totalValueTransferred = zeroAsBigInt;
-    operator.associatedAccounts = [];
-    operator.firstParticipation = event.block.timestamp;
-    operator.lastActive = event.block.timestamp;
-  }
-  operator.totalValueTransferred = operator.totalValueTransferred.plus(summedValue);
-  let clonedOperatorAssociatedAccounts = operator.associatedAccounts;
-  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params.to.toHex())) {
-    clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params.to.toHex();
-  }
-  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params.from.toHex())) {
-    clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params.from.toHex();
-  }
-  operator.lastActive = event.block.timestamp;
-  operator.associatedAccounts = clonedOperatorAssociatedAccounts;
-  operator.save();
 }
