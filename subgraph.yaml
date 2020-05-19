@@ -1,4 +1,4 @@
-specVersion: 0.0.1
+specVersion: 0.0.2
 description: Prediction Markets 2.0 by Gnosis
 repository: 'https://github.com/gnosis/hg-contracts'
 schema:
@@ -12,7 +12,7 @@ dataSources:
       abi: ConditionalTokens
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.1
+      apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
         - Condition
@@ -26,18 +26,18 @@ dataSources:
         - name: ConditionalTokens
           file: ./abis/ConditionalTokens.json
       eventHandlers:
-        - event: 'ConditionPreparation(bytes32,address,bytes32,uint256)'
+        - event: 'ConditionPreparation(indexed bytes32,indexed address,indexed bytes32,uint256)'
           handler: handleConditionPreparation
-        - event: 'ConditionResolution(bytes32,address,bytes32,uint256,uint256[])'
+        - event: 'ConditionResolution(indexed bytes32,indexed address,indexed bytes32,uint256,uint256[])'
           handler: handleConditionResolution
-        - event: 'PositionSplit(address,address,bytes32,bytes32,uint256[],uint256)'
+        - event: 'PositionSplit(indexed address,address,indexed bytes32,indexed bytes32,uint256[],uint256)'
           handler: handlePositionSplit
-        - event: 'PositionsMerge(address,address,bytes32,bytes32,uint256[],uint256)'
+        - event: 'PositionsMerge(indexed address,address,indexed bytes32,indexed bytes32,uint256[],uint256)'
           handler: handlePositionsMerge
-        - event: 'PayoutRedemption(address,address,bytes32,bytes32,uint256[],uint256)'
+        - event: 'PayoutRedemption(indexed address,indexed address,indexed bytes32,bytes32,uint256[],uint256)'
           handler: handlePayoutRedemption
-        - event: 'TransferSingle(address,address,address,uint256,uint256)'
+        - event: 'TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)'
           handler: handleTransferSingle
-        - event: 'TransferBatch(address,address,address,uint256[],uint256[])'
+        - event: 'TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])'
           handler: handleTransferBatch
       file: ./src/mapping.ts

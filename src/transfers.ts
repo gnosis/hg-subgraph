@@ -3,7 +3,7 @@ import { BigInt, Bytes } from '@graphprotocol/graph-ts';
 import {
   TransferSingle,
   TransferBatch
-} from './types/PredictionMarketSystem/PredictionMarketSystem';
+} from './types/ConditionalTokens/ConditionalTokens';
 
 import { User, Position, UserPosition, Operator } from './types/schema';
 
@@ -12,71 +12,71 @@ import { bigIntToBytes32, concat, checkIfValueExistsInArray, zeroAsBigInt, sum }
 export function handleTransferSingle(event: TransferSingle): void {
   let params = event.params;
 
-  // the Position & UserPosition of the _from address should already be in the system
-  let position = Position.load(bigIntToBytes32(params._id).toHex());
-  let _fromUserPositionId = concat(params._from, bigIntToBytes32(params._id)) as Bytes;
-  let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
-  _fromUserPosition.balance = _fromUserPosition.balance.minus(params._value);
-  _fromUserPosition.save();
+  // the Position & UserPosition of the from address should already be in the system
+  let position = Position.load(bigIntToBytes32(params.id).toHex());
+  let fromUserPositionId = concat(params.from, bigIntToBytes32(params.id)) as Bytes;
+  let fromUserPosition = UserPosition.load(fromUserPositionId.toHex());
+  fromUserPosition.balance = fromUserPosition.balance.minus(params.value);
+  fromUserPosition.save();
 
   // User Section
-  let _fromUser = User.load(params._from.toHex());
-  _fromUser.lastActive = event.block.timestamp;
-  let _toUser = User.load(params._to.toHex());
-  if (_toUser == null) {
-    _toUser = new User(params._to.toHex());
-    _toUser.firstParticipation = event.block.timestamp;
-    _toUser.participatedConditions = [];
+  let fromUser = User.load(params.from.toHex());
+  fromUser.lastActive = event.block.timestamp;
+  let toUser = User.load(params.to.toHex());
+  if (toUser == null) {
+    toUser = new User(params.to.toHex());
+    toUser.firstParticipation = event.block.timestamp;
+    toUser.participatedConditions = [];
   }
-  // Update _toUser.participatedConditions
+  // Update toUser.participatedConditions
   let clonePositionsConditions = position.conditions;
   for (var q = 0; q < clonePositionsConditions.length; q++) {
     if (
       !checkIfValueExistsInArray(
-        _toUser.participatedConditions as string[],
+        toUser.participatedConditions as string[],
         clonePositionsConditions[q]
       )
     ) {
-      let _toUserParticipatedConditions = _toUser.participatedConditions;
-      _toUserParticipatedConditions[_toUserParticipatedConditions.length] =
+      let toUserParticipatedConditions = toUser.participatedConditions;
+      toUserParticipatedConditions[toUserParticipatedConditions.length] =
         clonePositionsConditions[q];
-      _toUser.participatedConditions = _toUserParticipatedConditions;
-      _toUser.save();
+      toUser.participatedConditions = toUserParticipatedConditions;
+      toUser.save();
     }
   }
-  _toUser.lastActive = event.block.timestamp;
-  _toUser.save();
+  toUser.lastActive = event.block.timestamp;
+  toUser.save();
 
-  // _toUser UserPosition Section
-  let _toUserPositionId = concat(params._to, bigIntToBytes32(params._id)) as Bytes;
-  let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
-  if (_toUserPosition == null) {
-    _toUserPosition = new UserPosition(_toUserPositionId.toHex());
-    _toUserPosition.user = _toUser.id;
-    _toUserPosition.balance = zeroAsBigInt;
-    _toUserPosition.position = position.id;
+  // toUser UserPosition Section
+  let toUserPositionId = concat(params.to, bigIntToBytes32(params.id)) as Bytes;
+  let toUserPosition = UserPosition.load(toUserPositionId.toHex());
+  if (toUserPosition == null) {
+    toUserPosition = new UserPosition(toUserPositionId.toHex());
+    toUserPosition.user = toUser.id;
+    toUserPosition.balance = zeroAsBigInt;
+    toUserPosition.position = position.id;
   }
-  _toUserPosition.balance = _toUserPosition.balance.plus(params._value);
-  _toUserPosition.save();
+  toUserPosition.balance = toUserPosition.balance.plus(params.value);
+  toUserPosition.save();
 
   // Update the Operator
-  let operator = Operator.load(params._operator.toHex());
+  let operator = Operator.load(params.operator.toHex());
   if (operator == null) {
-    operator = new Operator(params._operator.toHex());
+    operator = new Operator(params.operator.toHex());
     operator.totalValueTransferred = zeroAsBigInt;
     operator.associatedAccounts = [];
     operator.firstParticipation = event.block.timestamp;
     operator.lastActive = event.block.timestamp;
   }
-  operator.totalValueTransferred = operator.totalValueTransferred.plus(params._value);
+  operator.totalValueTransferred = operator.totalValueTransferred.plus(params.value);
   let clonedOperatorAssociatedAccounts = operator.associatedAccounts;
-  if (!checkIfValueExistsInArray(clonedOperatorAssociatedAccounts, params._to.toHex())) {
-    clonedOperatorAssociatedAccounts[clonedOperatorAssociatedAccounts.length] = params._to.toHex();
+  if (!checkIfValueExistsInArray(clonedOperatorAssociatedAccounts, params.to.toHex())) {
+    clonedOperatorAssociatedAccounts[clonedOperatorAssociatedAccounts.length] = params.to.toHex();
   }
-  if (!checkIfValueExistsInArray(clonedOperatorAssociatedAccounts, params._from.toHex())) {
+  if (!checkIfValueExistsInArray(clonedOperatorAssociatedAccounts, params.from.toHex())) {
     clonedOperatorAssociatedAccounts[
       clonedOperatorAssociatedAccounts.length
-    ] = params._from.toHex();
+    ] = params.from.toHex();
   }
   operator.lastActive = event.block.timestamp;
   operator.associatedAccounts = clonedOperatorAssociatedAccounts;
@@ -85,29 +85,31 @@ export function handleTransferSingle(event: TransferSingle): void {
 
 export function handleTransferBatch(event: TransferBatch): void {
   let params = event.params;
-  let summedValue = sum(params._values);
+  let summedValue = sum(params.values);
 
   // User Section
-  let _fromUser = User.load(params._from.toHex());
-  _fromUser.lastActive = event.block.timestamp;
-  let _toUser = User.load(params._to.toHex());
-  if (_toUser == null) {
-    _toUser = new User(params._to.toHex());
-    _toUser.firstParticipation = event.block.timestamp;
-    _toUser.participatedConditions = [];
+  let fromUser = User.load(params.from.toHex());
+  fromUser.lastActive = event.block.timestamp;
+  let toUser = User.load(params.to.toHex());
+  if (toUser == null) {
+    toUser = new User(params.to.toHex());
+    toUser.firstParticipation = event.block.timestamp;
+    toUser.participatedConditions = [];
   }
-  _toUser.lastActive = event.block.timestamp;
-  _toUser.save();
+  toUser.lastActive = event.block.timestamp;
+  toUser.save();
 
   // Copies of variables for AssemblyScript memory
-  let _positionIds = params._ids;
-  let _values = params._values;
-  let copyPositionIds = new Array<BigInt>(params._ids.length);
-  let copyValues = new Array<BigInt>(params._values.length);
 
-  for (var i = 0; i < params._ids.length; i++) {
+  let _positionIds = params.ids;
+  let values = params.values;
+  let copyPositionIds = new Array<BigInt>(params.ids.length);
+  let copyValues = new Array<BigInt>(params.values.length);
+
+
+  for (var i = 0; i < params.ids.length; i++) {
     copyPositionIds[i] = _positionIds[i];
-    copyValues[i] = _values[i];
+    copyValues[i] = values[i];
 
     let clonedPosition = Position.load(copyPositionIds[i].toHex());
     if (!Array.isArray(clonedPosition.conditions)) {
@@ -118,42 +120,42 @@ export function handleTransferBatch(event: TransferBatch): void {
     for (var q = 0; q < clonedPositionConditions.length; q++) {
       if (
         !checkIfValueExistsInArray(
-          _toUser.participatedConditions as string[],
+          toUser.participatedConditions as string[],
           clonedPositionConditions[q]
         )
       ) {
-        let _toUserParticipatedConditions = _toUser.participatedConditions;
-        _toUserParticipatedConditions[_toUserParticipatedConditions.length] =
+        let toUserParticipatedConditions = toUser.participatedConditions;
+        toUserParticipatedConditions[toUserParticipatedConditions.length] =
           clonedPositionConditions[q];
-        _toUser.participatedConditions = _toUserParticipatedConditions;
-        _toUser.save();
+        toUser.participatedConditions = toUserParticipatedConditions;
+        toUser.save();
       }
     }
 
-    // _from UserPosition Section
+    // from UserPosition Section
     let bytesPositionId = bigIntToBytes32(copyPositionIds[i]);
-    let _fromUserPositionId = concat(params._from, bytesPositionId) as Bytes;
-    let _fromUserPosition = UserPosition.load(_fromUserPositionId.toHex());
-    _fromUserPosition.balance = _fromUserPosition.balance.minus(copyValues[i]);
-    _fromUserPosition.save();
-    // _to UserPosition Section
-    let _toUserPositionId = concat(params._to, bigIntToBytes32(copyPositionIds[i])) as Bytes;
-    let _toUserPosition = UserPosition.load(_toUserPositionId.toHex());
-    if (_toUserPosition == null) {
-      _toUserPosition = new UserPosition(_toUserPositionId.toHex());
-      _toUserPosition.user = _toUser.id;
+    let fromUserPositionId = concat(params.from, bytesPositionId) as Bytes;
+    let fromUserPosition = UserPosition.load(fromUserPositionId.toHex());
+    fromUserPosition.balance = fromUserPosition.balance.minus(copyValues[i]);
+    fromUserPosition.save();
+    // to UserPosition Section
+    let toUserPositionId = concat(params.to, bigIntToBytes32(copyPositionIds[i])) as Bytes;
+    let toUserPosition = UserPosition.load(toUserPositionId.toHex());
+    if (toUserPosition == null) {
+      toUserPosition = new UserPosition(toUserPositionId.toHex());
+      toUserPosition.user = toUser.id;
       let position = Position.load(bigIntToBytes32(copyPositionIds[i]).toHex());
-      _toUserPosition.position = position.id;
-      _toUserPosition.balance = zeroAsBigInt;
+      toUserPosition.position = position.id;
+      toUserPosition.balance = zeroAsBigInt;
     }
-    _toUserPosition.balance = _toUserPosition.balance.plus(copyValues[i]);
-    _toUserPosition.save();
+    toUserPosition.balance = toUserPosition.balance.plus(copyValues[i]);
+    toUserPosition.save();
   }
 
   // Operator Section
-  let operator = Operator.load(params._operator.toHex());
+  let operator = Operator.load(params.operator.toHex());
   if (operator == null) {
-    operator = new Operator(params._operator.toHex());
+    operator = new Operator(params.operator.toHex());
     operator.totalValueTransferred = zeroAsBigInt;
     operator.associatedAccounts = [];
     operator.firstParticipation = event.block.timestamp;
@@ -161,11 +163,11 @@ export function handleTransferBatch(event: TransferBatch): void {
   }
   operator.totalValueTransferred = operator.totalValueTransferred.plus(summedValue);
   let clonedOperatorAssociatedAccounts = operator.associatedAccounts;
-  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params._to.toHex())) {
-    clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params._to.toHex();
+  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params.to.toHex())) {
+    clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params.to.toHex();
   }
-  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params._from.toHex())) {
-    clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params._from.toHex();
+  if (!checkIfValueExistsInArray(operator.associatedAccounts as string[], params.from.toHex())) {
+    clonedOperatorAssociatedAccounts[operator.associatedAccounts.length] = params.from.toHex();
   }
   operator.lastActive = event.block.timestamp;
   operator.associatedAccounts = clonedOperatorAssociatedAccounts;

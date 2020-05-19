@@ -3,9 +3,9 @@
 node_modules
 .DS_STORE
 
-# Created with `Graph Codegen` 
-src/types
-dist
+# Created by Graph node
+src/types/
+build/
 
 # ABI Files -- Created with `npm run refresh-abi`
 abis/

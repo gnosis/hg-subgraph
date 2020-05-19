@@ -3,7 +3,7 @@ import { BigInt } from '@graphprotocol/graph-ts';
 import {
   ConditionPreparation,
   ConditionResolution
-} from './types/PredictionMarketSystem/PredictionMarketSystem';
+} from './types/ConditionalTokens/ConditionalTokens';
 
 import { Condition } from './types/schema';
 

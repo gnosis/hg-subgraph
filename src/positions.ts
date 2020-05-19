@@ -3,7 +3,7 @@ import {
   PositionSplit,
   PositionsMerge,
   PayoutRedemption
-} from './types/PredictionMarketSystem/PredictionMarketSystem';
+} from './types/ConditionalTokens/ConditionalTokens';
 
 import { Condition, User, Collateral, Collection, Position, UserPosition } from './types/schema';
 
