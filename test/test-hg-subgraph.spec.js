@@ -8,7 +8,7 @@ const PredictionMarketSystem = TruffleContract(
 const ERC20Mintable = TruffleContract(
   require('openzeppelin-solidity/build/contracts/ERC20Mintable.json')
 );
-[PredictionMarketSystem, ERC20Mintable].forEach(C => C.setProvider('http://localhost:8545'));
+[PredictionMarketSystem, ERC20Mintable].forEach((C) => C.setProvider('http://localhost:8545'));
 const web3 = PredictionMarketSystem.web3;
 const { randomHex, soliditySha3, toHex, toBN, padLeft, keccak256 } = web3.utils;
 
@@ -18,22 +18,25 @@ async function waitForGraphSync(targetBlockNumber) {
   do {
     await delay(100);
   } while (
-    (await axios.post('http://127.0.0.1:8000/subgraphs', {
-      query:
-        '{subgraphVersions(orderBy:createdAt orderDirection:desc first:1){deployment{latestEthereumBlockNumber}}}'
-    })).data.data.subgraphVersions[0].deployment.latestEthereumBlockNumber < targetBlockNumber
+    (
+      await axios.post('http://localhost:8000/subgraphs', {
+        query:
+          '{subgraphVersions(orderBy:createdAt orderDirection:desc first:1){deployment{latestEthereumBlockNumber}}}',
+      })
+    ).data.data.subgraphVersions[0].deployment.latestEthereumBlockNumber < targetBlockNumber
   );
 }
 
 async function querySubgraph(query) {
-  const response = await axios.post('http://127.0.0.1:8000/subgraphs/name/Gnosis/GnosisMarkets', {
-    query
+  const response = await axios.post('http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets', {
+    query,
   });
   return response.data.data;
 }
 
 async function getCondition(conditionId) {
-  return (await querySubgraph(`{
+  return (
+    await querySubgraph(`{
     condition(id:"${conditionId}") {
       id
       creator
@@ -50,21 +53,25 @@ async function getCondition(conditionId) {
       blockNumber
       collections { id }
     }
-  }`)).condition;
+  }`)
+  ).condition;
 }
 
 async function getCollection(collectionId) {
-  return (await querySubgraph(`{
+  return (
+    await querySubgraph(`{
     collection(id: "${collectionId}") {
       id
       conditions { id }
       indexSets
     }
-  }`)).collection;
+  }`)
+  ).collection;
 }
 
 async function getPosition(positionId) {
-  return (await querySubgraph(`{
+  return (
+    await querySubgraph(`{
     position(id: "${positionId}") {
       id
       collateralToken
@@ -74,14 +81,15 @@ async function getPosition(positionId) {
       lifetimeValue
       activeValue
     }
-  }`)).position;
+  }`)
+  ).position;
 }
 
-describe('hg-subgraph conditions <> collections <> positions', function() {
+describe('hg-subgraph conditions <> collections <> positions', function () {
   this.timeout(5000);
   let accounts, predictionMarketSystem, collateralToken, minter;
 
-  before(async function() {
+  before(async function () {
     this.timeout(30000);
     accounts = await web3.eth.getAccounts();
     web3.eth.defaultAccount = minter = accounts[0];
@@ -110,9 +118,9 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     const {
       tx: createTransaction,
-      receipt: { blockNumber: createBlockNumber }
+      receipt: { blockNumber: createBlockNumber },
     } = await predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
-      from: creator
+      from: creator,
     });
 
     const { timestamp: creationTimestamp } = await web3.eth.getBlock(createBlockNumber);
@@ -135,13 +143,13 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       resolveTransaction: null,
       resolveTimestamp: null,
       blockNumber: createBlockNumber.toString(),
-      collections: []
+      collections: [],
     });
 
     const payoutNumerators = [0, 1, 0];
     const {
       tx: resolveTransaction,
-      receipt: { blockNumber: resolveBlockNumber }
+      receipt: { blockNumber: resolveBlockNumber },
     } = await predictionMarketSystem.reportPayouts(questionId, payoutNumerators, { from: oracle });
     const { timestamp: resolutionTimestamp } = await web3.eth.getBlock(resolveBlockNumber);
 
@@ -156,14 +164,14 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       questionId,
       outcomeSlotCount,
       resolved: true,
-      payoutNumerators: payoutNumerators.map(x => x.toString()),
+      payoutNumerators: payoutNumerators.map((x) => x.toString()),
       payoutDenominator: payoutNumerators.reduce((a, b) => a + b, 0).toString(),
       createTransaction,
       creationTimestamp: creationTimestamp.toString(),
       resolveTransaction: resolveTransaction,
       resolveTimestamp: resolutionTimestamp.toString(),
       blockNumber: createBlockNumber.toString(),
-      collections: []
+      collections: [],
     });
   });
 
@@ -183,7 +191,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     await Promise.all(
       conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
         predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
-          from: creator
+          from: creator,
         })
       )
     );
@@ -193,7 +201,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
 
-    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map(indexSet =>
+    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map((indexSet) =>
       toBN(indexSet)
     );
     await predictionMarketSystem.splitPosition(
@@ -205,11 +213,11 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       { from: trader }
     );
 
-    const collectionIds = partition1.map(indexSet =>
+    const collectionIds = partition1.map((indexSet) =>
       keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
 
-    const positionIds = collectionIds.map(collectionId =>
+    const positionIds = collectionIds.map((collectionId) =>
       keccak256(collateralToken.address + collectionId.slice(2))
     );
 
@@ -226,14 +234,14 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       assert.deepEqual(collection, {
         id: collectionId,
         conditions: [{ id: conditionsInfo[0].conditionId }],
-        indexSets: [indexSet.toString()]
+        indexSets: [indexSet.toString()],
       });
     }
 
     for (const [positionId, indexSet, collectionId] of positionIds.map((p, i) => [
       p,
       partition1[i],
-      collectionIds[i]
+      collectionIds[i],
     ])) {
       assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
       const position = await getPosition(positionId);
@@ -242,12 +250,12 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         id: positionId,
         collateralToken: collateralToken.address.toLowerCase(),
         collection: {
-          id: collectionId
+          id: collectionId,
         },
         conditions: [{ id: conditionsInfo[0].conditionId }],
         indexSets: [indexSet.toString()],
         lifetimeValue: '100',
-        activeValue: '100'
+        activeValue: '100',
       });
     }
   });
@@ -268,7 +276,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     await Promise.all(
       conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
         predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
-          from: creator
+          from: creator,
         })
       )
     );
@@ -278,7 +286,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
 
-    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map(indexSet =>
+    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map((indexSet) =>
       toBN(indexSet)
     );
     await predictionMarketSystem.splitPosition(
@@ -290,21 +298,23 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       { from: trader }
     );
 
-    const collectionIds = partition1.map(indexSet =>
+    const collectionIds = partition1.map((indexSet) =>
       keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
 
-    const positionIds = collectionIds.map(collectionId =>
+    const positionIds = collectionIds.map((collectionId) =>
       keccak256(collateralToken.address + collectionId.slice(2))
     );
 
-    const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map(indexSet =>
+    const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map((indexSet) =>
       toBN(indexSet)
     );
 
-    for (const [parentPositionId, parentCollectionId, parentIndexSet] of positionIds.map(
-      (positionId, i) => [positionId, collectionIds[i], partition1[i]]
-    )) {
+    for (const [
+      parentPositionId,
+      parentCollectionId,
+      parentIndexSet,
+    ] of positionIds.map((positionId, i) => [positionId, collectionIds[i], partition1[i]])) {
       await predictionMarketSystem.splitPosition(
         collateralToken.address,
         parentCollectionId,
@@ -315,7 +325,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       );
 
       const parentCollectionIdBN = toBN(parentCollectionId);
-      const collectionIds2 = partition2.map(indexSet =>
+      const collectionIds2 = partition2.map((indexSet) =>
         padLeft(
           toHex(
             toBN(
@@ -331,7 +341,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         )
       );
 
-      const positionIds2 = collectionIds2.map(collectionId =>
+      const positionIds2 = collectionIds2.map((collectionId) =>
         keccak256(collateralToken.address + collectionId.slice(2))
       );
 
@@ -342,17 +352,17 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         id: parentPositionId,
         collateralToken: collateralToken.address.toLowerCase(),
         collection: {
-          id: parentCollectionId
+          id: parentCollectionId,
         },
         conditions: [{ id: conditionsInfo[0].conditionId }],
         indexSets: [parentIndexSet.toString()],
         lifetimeValue: '100',
-        activeValue: '0'
+        activeValue: '0',
       });
 
       for (const [collectionId, indexSet] of collectionIds2.map((collectionId, i) => [
         collectionId,
-        partition2[i]
+        partition2[i],
       ])) {
         const collection = await getCollection(collectionId);
         assert(collection, `collection ${collectionId} not found`);
@@ -361,17 +371,17 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         assert.sameDeepMembers(
           collection.conditions.map((condition, i) => ({
             conditionId: condition.id,
-            indexSet: collection.indexSets[i]
+            indexSet: collection.indexSets[i],
           })),
           [
             {
               conditionId: conditionsInfo[0].conditionId,
-              indexSet: parentIndexSet.toString()
+              indexSet: parentIndexSet.toString(),
             },
             {
               conditionId: conditionsInfo[1].conditionId,
-              indexSet: indexSet.toString()
-            }
+              indexSet: indexSet.toString(),
+            },
           ]
         );
       }
@@ -379,7 +389,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       for (const [positionId, collectionId, indexSet] of positionIds2.map((positionId, i) => [
         positionId,
         collectionIds2[i],
-        partition2[i]
+        partition2[i],
       ])) {
         assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
         const position = await getPosition(positionId);
@@ -388,27 +398,27 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
           id: positionId,
           collateralToken: collateralToken.address.toLowerCase(),
           collection: {
-            id: collectionId
+            id: collectionId,
           },
           lifetimeValue: '100',
-          activeValue: '100'
+          activeValue: '100',
         });
 
         assert.equal(position.conditions.length, position.indexSets.length);
         assert.sameDeepMembers(
           position.conditions.map((condition, i) => ({
             conditionId: condition.id,
-            indexSet: position.indexSets[i]
+            indexSet: position.indexSets[i],
           })),
           [
             {
               conditionId: conditionsInfo[0].conditionId,
-              indexSet: parentIndexSet.toString()
+              indexSet: parentIndexSet.toString(),
             },
             {
               conditionId: conditionsInfo[1].conditionId,
-              indexSet: indexSet.toString()
-            }
+              indexSet: indexSet.toString(),
+            },
           ]
         );
       }
@@ -431,7 +441,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
     await Promise.all(
       conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
         predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
-          from: creator
+          from: creator,
         })
       )
     );
@@ -441,7 +451,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
 
     await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
 
-    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map(indexSet =>
+    const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map((indexSet) =>
       toBN(indexSet)
     );
     await predictionMarketSystem.splitPosition(
@@ -453,11 +463,11 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       { from: trader }
     );
 
-    const collectionIds = partition1.map(indexSet =>
+    const collectionIds = partition1.map((indexSet) =>
       keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
 
-    const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map(indexSet =>
+    const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map((indexSet) =>
       toBN(indexSet)
     );
 
@@ -472,19 +482,19 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       );
     }
 
-    const partition3 = ['0xaaaaaaaa000000000', '0x55555555000000000'].map(indexSet =>
+    const partition3 = ['0xaaaaaaaa000000000', '0x55555555000000000'].map((indexSet) =>
       toBN(indexSet)
     );
     const partition3Union = partition3.reduce((a, b) => a.add(b));
     assert(partition3Union.eq(partition1[0]));
 
-    const collectionIds2 = partition2.map(indexSet =>
+    const collectionIds2 = partition2.map((indexSet) =>
       keccak256(conditionsInfo[1].conditionId + padLeft(toHex(indexSet), 64).slice(2))
     );
 
     for (const [parentCollectionId, parentIndexSet] of collectionIds2.map((collectionId, i) => [
       collectionId,
-      partition2[i]
+      partition2[i],
     ])) {
       const parentCollectionIdBN = toBN(parentCollectionId);
       const unionCollectionId = padLeft(
@@ -522,31 +532,31 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         id: parentPositionId,
         collateralToken: collateralToken.address.toLowerCase(),
         collection: {
-          id: unionCollectionId
+          id: unionCollectionId,
         },
         lifetimeValue: '100',
-        activeValue: '0'
+        activeValue: '0',
       });
       assert.equal(parentPosition.conditions.length, 2);
       assert.equal(parentPosition.indexSets.length, 2);
       assert.sameDeepMembers(
         parentPosition.conditions.map((condition, i) => ({
           conditionId: condition.id,
-          indexSet: parentPosition.indexSets[i]
+          indexSet: parentPosition.indexSets[i],
         })),
         [
           {
             conditionId: conditionsInfo[0].conditionId,
-            indexSet: partition3Union.toString()
+            indexSet: partition3Union.toString(),
           },
           {
             conditionId: conditionsInfo[1].conditionId,
-            indexSet: parentIndexSet.toString()
-          }
+            indexSet: parentIndexSet.toString(),
+          },
         ]
       );
 
-      const collectionIds3 = partition3.map(indexSet =>
+      const collectionIds3 = partition3.map((indexSet) =>
         padLeft(
           toHex(
             toBN(
@@ -562,13 +572,13 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         )
       );
 
-      const positionIds3 = collectionIds3.map(collectionId =>
+      const positionIds3 = collectionIds3.map((collectionId) =>
         keccak256(collateralToken.address + collectionId.slice(2))
       );
 
       for (const [collectionId, indexSet] of collectionIds3.map((collectionId, i) => [
         collectionId,
-        partition3[i]
+        partition3[i],
       ])) {
         const collection = await getCollection(collectionId);
         assert(collection, `collection ${collectionId} not found`);
@@ -577,17 +587,17 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
         assert.sameDeepMembers(
           collection.conditions.map((condition, i) => ({
             conditionId: condition.id,
-            indexSet: collection.indexSets[i]
+            indexSet: collection.indexSets[i],
           })),
           [
             {
               conditionId: conditionsInfo[0].conditionId,
-              indexSet: indexSet.toString()
+              indexSet: indexSet.toString(),
             },
             {
               conditionId: conditionsInfo[1].conditionId,
-              indexSet: parentIndexSet.toString()
-            }
+              indexSet: parentIndexSet.toString(),
+            },
           ]
         );
       }
@@ -595,7 +605,7 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
       for (const [positionId, collectionId, indexSet] of positionIds3.map((positionId, i) => [
         positionId,
         collectionIds3[i],
-        partition3[i]
+        partition3[i],
       ])) {
         assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
         const position = await getPosition(positionId);
@@ -604,27 +614,27 @@ describe('hg-subgraph conditions <> collections <> positions', function() {
           id: positionId,
           collateralToken: collateralToken.address.toLowerCase(),
           collection: {
-            id: collectionId
+            id: collectionId,
           },
           lifetimeValue: '100',
-          activeValue: '100'
+          activeValue: '100',
         });
 
         assert.equal(position.conditions.length, position.indexSets.length);
         assert.sameDeepMembers(
           position.conditions.map((condition, i) => ({
             conditionId: condition.id,
-            indexSet: position.indexSets[i]
+            indexSet: position.indexSets[i],
           })),
           [
             {
               conditionId: conditionsInfo[0].conditionId,
-              indexSet: indexSet.toString()
+              indexSet: indexSet.toString(),
             },
             {
               conditionId: conditionsInfo[1].conditionId,
-              indexSet: parentIndexSet.toString()
-            }
+              indexSet: parentIndexSet.toString(),
+            },
           ]
         );
       }
