@@ -1,6 +1,5 @@
 const { assert } = require('chai');
 const axios = require('axios');
-const delay = require('delay');
 const TruffleContract = require('@truffle/contract');
 const PredictionMarketSystem = TruffleContract(
   require('@gnosis.pm/conditional-tokens-contracts/build/contracts/ConditionalTokens.json')
@@ -10,22 +9,15 @@ const ERC20Mintable = TruffleContract(
 );
 [PredictionMarketSystem, ERC20Mintable].forEach((C) => C.setProvider('http://localhost:8545'));
 const web3 = PredictionMarketSystem.web3;
-const { randomHex, soliditySha3, toHex, toBN, padLeft, keccak256 } = web3.utils;
+const { randomHex, toBN } = web3.utils;
+const {
+  getConditionId,
+  getCollectionId,
+  getPositionId,
+  combineCollectionIds,
+} = require('@gnosis.pm/conditional-tokens-contracts/utils/id-helpers')(web3.utils);
 
-async function waitForGraphSync(targetBlockNumber) {
-  if (targetBlockNumber == null) targetBlockNumber = await web3.eth.getBlockNumber();
-
-  do {
-    await delay(100);
-  } while (
-    (
-      await axios.post('http://localhost:8000/subgraphs', {
-        query:
-          '{subgraphVersions(orderBy:createdAt orderDirection:desc first:1){deployment{latestEthereumBlockNumber}}}',
-      })
-    ).data.data.subgraphVersions[0].deployment.latestEthereumBlockNumber < targetBlockNumber
-  );
-}
+const { waitForGraphSync } = require('./utils')({ web3 });
 
 async function querySubgraph(query) {
   const response = await axios.post('http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets', {
@@ -48,9 +40,9 @@ async function getCondition(conditionId) {
       payoutDenominator
       createTransaction
       creationTimestamp
+      creationBlockNumber
       resolveTransaction
       resolveTimestamp
-      blockNumber
       collections { id }
     }
   }`)
@@ -110,11 +102,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     const [creator, oracle] = accounts;
     const questionId = randomHex(32);
     const outcomeSlotCount = 3;
-    const conditionId = soliditySha3(
-      { type: 'address', value: oracle },
-      { type: 'bytes32', value: questionId },
-      { type: 'uint', value: outcomeSlotCount }
-    );
+    const conditionId = getConditionId(oracle, questionId, outcomeSlotCount);
 
     const {
       tx: createTransaction,
@@ -140,9 +128,9 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       payoutDenominator: null,
       createTransaction,
       creationTimestamp: creationTimestamp.toString(),
+      creationBlockNumber: createBlockNumber.toString(),
       resolveTransaction: null,
       resolveTimestamp: null,
-      blockNumber: createBlockNumber.toString(),
       collections: [],
     });
 
@@ -168,9 +156,9 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       payoutDenominator: payoutNumerators.reduce((a, b) => a + b, 0).toString(),
       createTransaction,
       creationTimestamp: creationTimestamp.toString(),
+      creationBlockNumber: createBlockNumber.toString(),
       resolveTransaction: resolveTransaction,
       resolveTimestamp: resolutionTimestamp.toString(),
-      blockNumber: createBlockNumber.toString(),
       collections: [],
     });
   });
@@ -180,11 +168,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     const conditionsInfo = Array.from({ length: 2 }, () => {
       const questionId = randomHex(32);
       const outcomeSlotCount = 68;
-      const conditionId = soliditySha3(
-        { type: 'address', value: oracle },
-        { type: 'bytes32', value: questionId },
-        { type: 'uint', value: outcomeSlotCount }
-      );
+      const conditionId = getConditionId(oracle, questionId, outcomeSlotCount);
       return { questionId, outcomeSlotCount, conditionId };
     });
 
@@ -214,11 +198,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     );
 
     const collectionIds = partition1.map((indexSet) =>
-      keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
+      getCollectionId(conditionsInfo[0].conditionId, indexSet)
     );
 
     const positionIds = collectionIds.map((collectionId) =>
-      keccak256(collateralToken.address + collectionId.slice(2))
+      getPositionId(collateralToken.address, collectionId)
     );
 
     for (const positionId of positionIds) {
@@ -265,11 +249,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     const conditionsInfo = Array.from({ length: 2 }, () => {
       const questionId = randomHex(32);
       const outcomeSlotCount = 68;
-      const conditionId = soliditySha3(
-        { type: 'address', value: oracle },
-        { type: 'bytes32', value: questionId },
-        { type: 'uint', value: outcomeSlotCount }
-      );
+      const conditionId = getConditionId(oracle, questionId, outcomeSlotCount);
       return { questionId, outcomeSlotCount, conditionId };
     });
 
@@ -299,11 +279,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     );
 
     const collectionIds = partition1.map((indexSet) =>
-      keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
+      getCollectionId(conditionsInfo[0].conditionId, indexSet)
     );
 
     const positionIds = collectionIds.map((collectionId) =>
-      keccak256(collateralToken.address + collectionId.slice(2))
+      getPositionId(collateralToken.address, collectionId)
     );
 
     const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map((indexSet) =>
@@ -324,25 +304,15 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         { from: trader }
       );
 
-      const parentCollectionIdBN = toBN(parentCollectionId);
       const collectionIds2 = partition2.map((indexSet) =>
-        padLeft(
-          toHex(
-            toBN(
-              soliditySha3(
-                { type: 'bytes32', value: conditionsInfo[1].conditionId },
-                { type: 'uint', value: indexSet }
-              )
-            )
-              .add(parentCollectionIdBN)
-              .maskn(256)
-          ),
-          64
-        )
+        combineCollectionIds([
+          parentCollectionId,
+          getCollectionId(conditionsInfo[1].conditionId, indexSet),
+        ])
       );
 
       const positionIds2 = collectionIds2.map((collectionId) =>
-        keccak256(collateralToken.address + collectionId.slice(2))
+        getPositionId(collateralToken.address, collectionId)
       );
 
       await waitForGraphSync();
@@ -430,11 +400,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     const conditionsInfo = Array.from({ length: 2 }, () => {
       const questionId = randomHex(32);
       const outcomeSlotCount = 68;
-      const conditionId = soliditySha3(
-        { type: 'address', value: oracle },
-        { type: 'bytes32', value: questionId },
-        { type: 'uint', value: outcomeSlotCount }
-      );
+      const conditionId = getConditionId(oracle, questionId, outcomeSlotCount);
       return { questionId, outcomeSlotCount, conditionId };
     });
 
@@ -464,7 +430,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     );
 
     const collectionIds = partition1.map((indexSet) =>
-      keccak256(conditionsInfo[0].conditionId + padLeft(toHex(indexSet), 64).slice(2))
+      getCollectionId(conditionsInfo[0].conditionId, indexSet)
     );
 
     const partition2 = ['0xf0f0f0f0f0f0f0f0f', '0x0f0f0f0f0f0f0f0f0'].map((indexSet) =>
@@ -489,28 +455,19 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     assert(partition3Union.eq(partition1[0]));
 
     const collectionIds2 = partition2.map((indexSet) =>
-      keccak256(conditionsInfo[1].conditionId + padLeft(toHex(indexSet), 64).slice(2))
+      getCollectionId(conditionsInfo[1].conditionId, indexSet)
     );
 
     for (const [parentCollectionId, parentIndexSet] of collectionIds2.map((collectionId, i) => [
       collectionId,
       partition2[i],
     ])) {
-      const parentCollectionIdBN = toBN(parentCollectionId);
-      const unionCollectionId = padLeft(
-        toHex(
-          toBN(
-            soliditySha3(
-              { type: 'bytes32', value: conditionsInfo[0].conditionId },
-              { type: 'uint', value: partition3Union }
-            )
-          )
-            .add(parentCollectionIdBN)
-            .maskn(256)
-        ),
-        64
-      );
-      const parentPositionId = keccak256(collateralToken.address + unionCollectionId.slice(2));
+      const combinedCollectionId = combineCollectionIds([
+        parentCollectionId,
+        getCollectionId(conditionsInfo[0].conditionId, partition3Union),
+      ]);
+
+      const parentPositionId = getPositionId(collateralToken.address, combinedCollectionId);
 
       assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionId), 100);
 
@@ -532,7 +489,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         id: parentPositionId,
         collateralToken: collateralToken.address.toLowerCase(),
         collection: {
-          id: unionCollectionId,
+          id: combinedCollectionId,
         },
         lifetimeValue: '100',
         activeValue: '0',
@@ -557,23 +514,14 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       );
 
       const collectionIds3 = partition3.map((indexSet) =>
-        padLeft(
-          toHex(
-            toBN(
-              soliditySha3(
-                { type: 'bytes32', value: conditionsInfo[0].conditionId },
-                { type: 'uint', value: indexSet }
-              )
-            )
-              .add(parentCollectionIdBN)
-              .maskn(256)
-          ),
-          64
-        )
+        combineCollectionIds([
+          parentCollectionId,
+          getCollectionId(conditionsInfo[0].conditionId, indexSet),
+        ])
       );
 
       const positionIds3 = collectionIds3.map((collectionId) =>
-        keccak256(collateralToken.address + collectionId.slice(2))
+        getPositionId(collateralToken.address, collectionId)
       );
 
       for (const [collectionId, indexSet] of collectionIds3.map((collectionId, i) => [
