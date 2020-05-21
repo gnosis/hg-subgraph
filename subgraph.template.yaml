@@ -1,15 +1,16 @@
 specVersion: 0.0.2
-description: Prediction Markets 2.0 by Gnosis
+description: Conditional Tokens subgraph
 repository: 'https://github.com/gnosis/hg-contracts'
 schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
     name: ConditionalTokens
-    network: development
+    network: {{network}}
     source:
-      address: '0xCfEB869F69431e42cdB54A4F4f105C19C080A601'
+      address: '{{ConditionalTokens.address}}'
       abi: ConditionalTokens
+      startBlock: {{ConditionalTokens.startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4

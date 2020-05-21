@@ -2,14 +2,14 @@ const { assert } = require('chai');
 const axios = require('axios');
 const TruffleContract = require('@truffle/contract');
 
-const PredictionMarketSystem = TruffleContract(
+const ConditionalTokens = TruffleContract(
   require('@gnosis.pm/conditional-tokens-contracts/build/contracts/ConditionalTokens.json')
 );
 const ERC20Mintable = TruffleContract(
   require('openzeppelin-solidity/build/contracts/ERC20Mintable.json')
 );
-[PredictionMarketSystem, ERC20Mintable].forEach((C) => C.setProvider('http://localhost:8545'));
-const web3 = PredictionMarketSystem.web3;
+[ConditionalTokens, ERC20Mintable].forEach((C) => C.setProvider('http://localhost:8545'));
+const web3 = ConditionalTokens.web3;
 const { randomHex } = web3.utils;
 const {
   getConditionId,
@@ -22,18 +22,13 @@ const { waitForGraphSync } = require('./utils')({ web3 });
 
 describe('Complete scenario tests for accurate mappings', function () {
   this.timeout(20000);
-  let accounts,
-    predictionMarketSystem,
-    collateralToken,
-    minter,
-    globalConditionId,
-    globalConditionId2;
+  let accounts, conditionalTokens, collateralToken, minter, globalConditionId, globalConditionId2;
 
   before(async function () {
     this.timeout(30000);
     accounts = await web3.eth.getAccounts();
     web3.eth.defaultAccount = minter = accounts[0];
-    predictionMarketSystem = await PredictionMarketSystem.deployed();
+    conditionalTokens = await ConditionalTokens.deployed();
     collateralToken = await ERC20Mintable.new({ from: minter });
     const [creator, oracle] = accounts;
     const conditionsInfo = Array.from({ length: 2 }, () => {
@@ -42,22 +37,22 @@ describe('Complete scenario tests for accurate mappings', function () {
       const conditionId = getConditionId(oracle, questionId, outcomeSlotCount);
       return { questionId, outcomeSlotCount, conditionId };
     });
-    await predictionMarketSystem.prepareCondition(
+    await conditionalTokens.prepareCondition(
       oracle,
       conditionsInfo[0].questionId,
       conditionsInfo[0].outcomeSlotCount,
       { from: creator }
     );
-    await predictionMarketSystem.prepareCondition(
+    await conditionalTokens.prepareCondition(
       oracle,
       conditionsInfo[1].questionId,
       conditionsInfo[1].outcomeSlotCount,
       { from: creator }
     );
-    await predictionMarketSystem.reportPayouts(conditionsInfo[0].questionId, [0, 1, 0], {
+    await conditionalTokens.reportPayouts(conditionsInfo[0].questionId, [0, 1, 0], {
       from: oracle,
     });
-    await predictionMarketSystem.reportPayouts(conditionsInfo[1].questionId, [0, 1, 0], {
+    await conditionalTokens.reportPayouts(conditionsInfo[1].questionId, [0, 1, 0], {
       from: oracle,
     });
     globalConditionId = conditionsInfo[0].conditionId;
@@ -69,10 +64,10 @@ describe('Complete scenario tests for accurate mappings', function () {
     const [trader, trader2] = accounts;
     await collateralToken.mint(trader, 100, { from: minter });
     assert.equal(await collateralToken.balanceOf(trader), 100);
-    await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
+    await collateralToken.approve(conditionalTokens.address, 100, { from: trader });
     const partition = [0b110, 0b01];
 
-    await predictionMarketSystem.splitPosition(
+    await conditionalTokens.splitPosition(
       collateralToken.address,
       '0x0000000000000000000000000000000000000000000000000000000000000000',
       globalConditionId,
@@ -89,7 +84,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     );
 
     let collateralData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           collateral(id: "${collateralToken.address.toLowerCase()}") {
             id
@@ -103,10 +98,10 @@ describe('Complete scenario tests for accurate mappings', function () {
     assert.equal(collateralData.collateral.redeemedCollateral, 0);
 
     for (const [positionId, collectionId] of positionIds.map((p, i) => [p, collectionIds[i]])) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 50);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 50);
       const userPositionId = (trader + positionId.slice(2)).toLowerCase();
       const userPositionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             userPositions(where: {id: "${userPositionId}"}) {
               balance
@@ -121,7 +116,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(userPositionGraphData.user.id, trader.toLowerCase());
 
       const positionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             position(id: "${positionId}") {
               collateralToken
@@ -145,7 +140,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     }
 
     let userGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           user(id: "${trader.toLowerCase()}") {
             id
@@ -178,7 +173,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     const collectionToSplitOn = collectionIds[0];
     const collectionNotSplitOn = collectionIds[1];
 
-    await predictionMarketSystem.splitPosition(
+    await conditionalTokens.splitPosition(
       collateralToken.address,
       collectionToSplitOn,
       globalConditionId2,
@@ -197,7 +192,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     );
 
     userGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
         user(id: "${trader.toLowerCase()}") {
           id
@@ -226,12 +221,12 @@ describe('Complete scenario tests for accurate mappings', function () {
 
     // // verify that parentPosition is -25
     const parentPositionFromSplit = getPositionId(collateralToken.address, collectionToSplitOn);
-    assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionFromSplit), 25);
+    assert.equal(await conditionalTokens.balanceOf(trader, parentPositionFromSplit), 25);
     const parentPositionFromSplitUserPosition = (
       trader + parentPositionFromSplit.slice(2)
     ).toLowerCase();
     let splitPositionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${parentPositionFromSplit}") {
             id
@@ -256,9 +251,9 @@ describe('Complete scenario tests for accurate mappings', function () {
     // Verifies that the position that wasn't affected by the 2nd split is still stored correctly
     const notSplitPosition = getPositionId(collateralToken.address, collectionNotSplitOn);
     const usernotSplitPosition = (trader + notSplitPosition.slice(2)).toLowerCase();
-    assert.equal(await predictionMarketSystem.balanceOf(trader, notSplitPosition), 50);
+    assert.equal(await conditionalTokens.balanceOf(trader, notSplitPosition), 50);
     let notSplitPositionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${notSplitPosition}") {
             id
@@ -284,10 +279,10 @@ describe('Complete scenario tests for accurate mappings', function () {
       posId,
       collectionIds2[i],
     ])) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 25);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 25);
       const userPositionId = (trader + positionId.slice(2)).toLowerCase();
       let userPositionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             userPositions(where: {id: "${userPositionId}"}) {
               balance
@@ -302,7 +297,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(userPositionGraphData.user.id, trader.toLowerCase());
 
       let positionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             position(id: "${positionId}") {
               collateralToken
@@ -335,7 +330,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     // split 6 into 4 and 2
     const partition2 = [0b100, 0b10];
 
-    await predictionMarketSystem.splitPosition(
+    await conditionalTokens.splitPosition(
       collateralToken.address,
       '0x00',
       globalConditionId,
@@ -353,11 +348,11 @@ describe('Complete scenario tests for accurate mappings', function () {
       getPositionId(collateralToken.address, collectionId)
     );
 
-    assert.equal(await predictionMarketSystem.balanceOf(trader, positionIds[0]), 20);
-    assert.equal(await predictionMarketSystem.balanceOf(trader, positionIds[1]), 50);
+    assert.equal(await conditionalTokens.balanceOf(trader, positionIds[0]), 20);
+    assert.equal(await conditionalTokens.balanceOf(trader, positionIds[1]), 50);
 
     userGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
         user(id: "${trader.toLowerCase()}") {
           id
@@ -388,10 +383,10 @@ describe('Complete scenario tests for accurate mappings', function () {
     let positionGraphData;
 
     for (const [positionId, collectionId] of positionIds3.map((p, i) => [p, collectionIds3[i]])) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 5);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 5);
       const userPositionId = (trader + positionId.slice(2)).toLowerCase();
       let userPositionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             userPositions(where: {id: "${userPositionId}"}) {
               balance
@@ -406,7 +401,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(userPositionGraphData.user.id, trader.toLowerCase());
 
       positionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             position(id: "${positionId}") {
               collateralToken
@@ -432,7 +427,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     }
 
     positionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${positionIds[0]}") {
             id
@@ -457,7 +452,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
     // SECTION: Tests for merging tokens
-    await predictionMarketSystem.mergePositions(
+    await conditionalTokens.mergePositions(
       collateralToken.address,
       '0x00',
       globalConditionId,
@@ -468,10 +463,10 @@ describe('Complete scenario tests for accurate mappings', function () {
     await waitForGraphSync();
 
     for (const [positionId, collectionId] of positionIds3.map((p, i) => [p, collectionIds3[i]])) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 0);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 0);
       const userPositionId = (trader + positionId.slice(2)).toLowerCase();
       let userPositionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             userPositions(where: {id: "${userPositionId}"}) {
               balance
@@ -486,7 +481,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(userPositionGraphData.user.id, trader.toLowerCase());
 
       positionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             position(id: "${positionId}") {
               collateralToken
@@ -512,7 +507,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.lengthOf(positionGraphData.indexSets, 2);
     }
 
-    await predictionMarketSystem.mergePositions(
+    await conditionalTokens.mergePositions(
       collateralToken.address,
       collectionToSplitOn,
       globalConditionId2,
@@ -526,10 +521,10 @@ describe('Complete scenario tests for accurate mappings', function () {
       posId,
       collectionIds2[i],
     ])) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 20);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 20);
       const userPositionId = (trader + positionId.slice(2)).toLowerCase();
       let userPositionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             userPositions(where: {id: "${userPositionId}"}) {
               balance
@@ -544,7 +539,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(userPositionGraphData.user.id, trader.toLowerCase());
 
       let positionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             position(id: "${positionId}") {
               collateralToken
@@ -574,7 +569,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     }
 
     positionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${positionIds[0]}") {
             id
@@ -598,7 +593,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     assert.lengthOf(positionGraphData.position.conditions, 1);
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
-    await predictionMarketSystem.mergePositions(
+    await conditionalTokens.mergePositions(
       collateralToken.address,
       '0x00',
       globalConditionId,
@@ -609,7 +604,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     await waitForGraphSync();
 
     positionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${positionIds[0]}") {
             id
@@ -634,7 +629,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
     positionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${positionIds[1]}") {
             id
@@ -659,17 +654,17 @@ describe('Complete scenario tests for accurate mappings', function () {
     assert.equal(positionGraphData.userPosition.position.id, positionIds[1]);
 
     // TESTS FOR TRADING POSITIONS
-    await predictionMarketSystem.safeTransferFrom(trader, trader2, positionIds[0], 10, '0x00', {
+    await conditionalTokens.safeTransferFrom(trader, trader2, positionIds[0], 10, '0x00', {
       from: trader,
     });
     await waitForGraphSync();
 
-    assert.equal(await predictionMarketSystem.balanceOf(trader2, positionIds[0]), 10);
+    assert.equal(await conditionalTokens.balanceOf(trader2, positionIds[0]), 10);
 
     // assert that a new UserPosition and User have been created for trader2
     const trader2UserPositionId = (trader2 + positionIds[0].slice(2)).toLowerCase();
     let trader2UserPositionData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${positionIds[0]}") {
             id
@@ -684,14 +679,14 @@ describe('Complete scenario tests for accurate mappings', function () {
         }`,
       })
     ).data.data;
-    assert.equal(await predictionMarketSystem.balanceOf(trader2, positionIds[0]), 10);
-    assert.equal(await predictionMarketSystem.balanceOf(trader, positionIds[0]), 10);
+    assert.equal(await conditionalTokens.balanceOf(trader2, positionIds[0]), 10);
+    assert.equal(await conditionalTokens.balanceOf(trader, positionIds[0]), 10);
     assert.equal(trader2UserPositionData.position.id.toLowerCase(), positionIds[0]);
     assert.equal(trader2UserPositionData.userPosition.balance, 10);
     assert.equal(trader2UserPositionData.userPosition.user.id, trader2.toLowerCase());
 
     let user2GraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           user(id: "${trader2.toLowerCase()}") {
             id
@@ -721,7 +716,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     // // TESTS FOR BATCH TRADING OF DIFFERENT OUTCOME TOKENS
     const positionIds4 = positionIds2.slice();
 
-    await predictionMarketSystem.safeBatchTransferFrom(
+    await conditionalTokens.safeBatchTransferFrom(
       trader,
       trader2,
       positionIds4,
@@ -732,7 +727,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     await waitForGraphSync();
 
     user2GraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           user(id: "${trader2.toLowerCase()}") {
             id
@@ -765,7 +760,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     ])) {
       const userPositionId = (trader2 + positionId.slice(2)).toLowerCase();
       let batchTransferUserPositionsData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             position(id: "${positionId}") { id }
             userPosition(id: "${userPositionId}") {
@@ -776,8 +771,8 @@ describe('Complete scenario tests for accurate mappings', function () {
           }`,
         })
       ).data.data;
-      assert.equal(await predictionMarketSystem.balanceOf(trader2, positionId), 5);
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 15);
+      assert.equal(await conditionalTokens.balanceOf(trader2, positionId), 5);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 15);
       assert.equal(batchTransferUserPositionsData.userPosition.balance, 5);
       assert.equal(
         batchTransferUserPositionsData.userPosition.position.id.toLowerCase(),
@@ -786,7 +781,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(batchTransferUserPositionsData.userPosition.user.id, trader2.toLowerCase());
 
       let positionGraphData = (
-        await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+        await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
           query: `{
             position(id: "${positionId}") {
               collateralToken
@@ -815,7 +810,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.lengthOf(positionGraphData.indexSets, 2);
     }
 
-    await predictionMarketSystem.redeemPositions(
+    await conditionalTokens.redeemPositions(
       collateralToken.address,
       collectionToSplitOn,
       globalConditionId2,
@@ -825,7 +820,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     await waitForGraphSync();
 
     positionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${positionIds[0]}") {
             id
@@ -843,15 +838,15 @@ describe('Complete scenario tests for accurate mappings', function () {
         }`,
       })
     ).data.data;
-    assert.equal(await predictionMarketSystem.balanceOf(trader2, positionIds[0]), 15);
-    assert.equal(await predictionMarketSystem.balanceOf(trader, positionIds[0]), 10);
+    assert.equal(await conditionalTokens.balanceOf(trader2, positionIds[0]), 15);
+    assert.equal(await conditionalTokens.balanceOf(trader, positionIds[0]), 10);
     assert.equal(positionGraphData.position.activeValue, 25);
     assert.equal(positionGraphData.position.lifetimeValue, 50);
     assert.lengthOf(positionGraphData.position.conditions, 1);
     assert.equal(positionGraphData.userPosition.balance, 15);
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
-    await predictionMarketSystem.redeemPositions(
+    await conditionalTokens.redeemPositions(
       collateralToken.address,
       '0x00',
       globalConditionId,
@@ -861,7 +856,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     await waitForGraphSync();
 
     positionGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           position(id: "${positionIds[0]}") {
             id
@@ -879,8 +874,8 @@ describe('Complete scenario tests for accurate mappings', function () {
         }`,
       })
     ).data.data;
-    assert.equal(await predictionMarketSystem.balanceOf(trader2, positionIds[0]), 0);
-    assert.equal(await predictionMarketSystem.balanceOf(trader, positionIds[0]), 10);
+    assert.equal(await conditionalTokens.balanceOf(trader2, positionIds[0]), 0);
+    assert.equal(await conditionalTokens.balanceOf(trader, positionIds[0]), 10);
     assert.equal(positionGraphData.position.activeValue, 10);
     assert.equal(positionGraphData.position.lifetimeValue, 50);
     assert.lengthOf(positionGraphData.position.conditions, 1);
@@ -888,7 +883,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     assert.equal(positionGraphData.userPosition.position.id, positionIds[0]);
 
     collateralData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
+      await axios.post(`http://localhost:8000/subgraphs/name/gnosis/hg`, {
         query: `{
           collateral(id: "${collateralToken.address.toLowerCase()}") {
             id
@@ -900,22 +895,5 @@ describe('Complete scenario tests for accurate mappings', function () {
     ).data.data;
     assert.equal(collateralData.collateral.splitCollateral, 50);
     assert.equal(collateralData.collateral.redeemedCollateral, 25);
-
-    let operatorGraphData = (
-      await axios.post(`http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets`, {
-        query: `{
-          operator(id: "${trader.toLowerCase()}") {
-            id
-            totalValueTransferred associatedAccounts { id }
-          }
-        }`,
-      })
-    ).data.data;
-
-    assert.equal(operatorGraphData.operator.totalValueTransferred, 20);
-    const operatorAssociatedAccounts = operatorGraphData.operator.associatedAccounts.map(
-      (acc) => acc.id
-    );
-    assert.sameMembers(operatorAssociatedAccounts, [trader.toLowerCase(), trader2.toLowerCase()]);
   });
 });

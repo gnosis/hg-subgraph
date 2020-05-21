@@ -4,8 +4,9 @@ node_modules
 .DS_STORE
 
 # Created by Graph node
-src/types/
+generated/
 build/
 
-# ABI Files -- Created with `npm run refresh-abi`
+# Created by project
 abis/
+subgraph.yaml

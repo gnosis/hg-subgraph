@@ -4,9 +4,9 @@ import {
   PositionsMerge,
   PayoutRedemption,
   ConditionalTokens
-} from './types/ConditionalTokens/ConditionalTokens';
+} from '../generated/ConditionalTokens/ConditionalTokens';
 
-import { Condition, User, Collateral, Collection, Position, UserPosition } from './types/schema';
+import { Condition, User, Collateral, Collection, Position, UserPosition } from '../generated/schema';
 
 import { sum, zeroAsBigInt, bigIntToBytes32, concat, checkIfValueExistsInArray } from './utils';
 

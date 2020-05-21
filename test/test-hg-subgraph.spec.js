@@ -1,14 +1,14 @@
 const { assert } = require('chai');
 const axios = require('axios');
 const TruffleContract = require('@truffle/contract');
-const PredictionMarketSystem = TruffleContract(
+const ConditionalTokens = TruffleContract(
   require('@gnosis.pm/conditional-tokens-contracts/build/contracts/ConditionalTokens.json')
 );
 const ERC20Mintable = TruffleContract(
   require('openzeppelin-solidity/build/contracts/ERC20Mintable.json')
 );
-[PredictionMarketSystem, ERC20Mintable].forEach((C) => C.setProvider('http://localhost:8545'));
-const web3 = PredictionMarketSystem.web3;
+[ConditionalTokens, ERC20Mintable].forEach((C) => C.setProvider('http://localhost:8545'));
+const web3 = ConditionalTokens.web3;
 const { randomHex, toBN } = web3.utils;
 const {
   getConditionId,
@@ -20,7 +20,7 @@ const {
 const { waitForGraphSync } = require('./utils')({ web3 });
 
 async function querySubgraph(query) {
-  const response = await axios.post('http://localhost:8000/subgraphs/name/Gnosis/GnosisMarkets', {
+  const response = await axios.post('http://localhost:8000/subgraphs/name/gnosis/hg', {
     query,
   });
   return response.data.data;
@@ -79,19 +79,15 @@ async function getPosition(positionId) {
 
 describe('hg-subgraph conditions <> collections <> positions', function () {
   this.timeout(5000);
-  let accounts, predictionMarketSystem, collateralToken, minter;
+  let accounts, conditionalTokens, collateralToken, minter;
 
   before(async function () {
     this.timeout(30000);
     accounts = await web3.eth.getAccounts();
     web3.eth.defaultAccount = minter = accounts[0];
-    predictionMarketSystem = await PredictionMarketSystem.deployed();
+    conditionalTokens = await ConditionalTokens.deployed();
     collateralToken = await ERC20Mintable.new({ from: minter });
     await waitForGraphSync();
-  });
-
-  it('matches the configuration', async () => {
-    assert.equal(predictionMarketSystem.address, '0xCfEB869F69431e42cdB54A4F4f105C19C080A601');
   });
 
   it('allows GraphQL queries', async () => {
@@ -107,7 +103,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     const {
       tx: createTransaction,
       receipt: { blockNumber: createBlockNumber },
-    } = await predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
+    } = await conditionalTokens.prepareCondition(oracle, questionId, outcomeSlotCount, {
       from: creator,
     });
 
@@ -138,7 +134,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     const {
       tx: resolveTransaction,
       receipt: { blockNumber: resolveBlockNumber },
-    } = await predictionMarketSystem.reportPayouts(questionId, payoutNumerators, { from: oracle });
+    } = await conditionalTokens.reportPayouts(questionId, payoutNumerators, { from: oracle });
     const { timestamp: resolutionTimestamp } = await web3.eth.getBlock(resolveBlockNumber);
 
     await waitForGraphSync();
@@ -174,7 +170,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
 
     await Promise.all(
       conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
-        predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
+        conditionalTokens.prepareCondition(oracle, questionId, outcomeSlotCount, {
           from: creator,
         })
       )
@@ -183,12 +179,12 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     await collateralToken.mint(trader, 100, { from: minter });
     assert.equal(await collateralToken.balanceOf(trader), 100);
 
-    await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
+    await collateralToken.approve(conditionalTokens.address, 100, { from: trader });
 
     const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map((indexSet) =>
       toBN(indexSet)
     );
-    await predictionMarketSystem.splitPosition(
+    await conditionalTokens.splitPosition(
       collateralToken.address,
       `0x${'00'.repeat(32)}`,
       conditionsInfo[0].conditionId,
@@ -206,7 +202,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     );
 
     for (const positionId of positionIds) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 100);
     }
 
     assert.equal(await collateralToken.balanceOf(trader), 0);
@@ -227,7 +223,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       partition1[i],
       collectionIds[i],
     ])) {
-      assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
+      assert.equal(await conditionalTokens.balanceOf(trader, positionId), 100);
       const position = await getPosition(positionId);
 
       assert.deepEqual(position, {
@@ -255,7 +251,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
 
     await Promise.all(
       conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
-        predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
+        conditionalTokens.prepareCondition(oracle, questionId, outcomeSlotCount, {
           from: creator,
         })
       )
@@ -264,12 +260,12 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     await collateralToken.mint(trader, 100, { from: minter });
     assert.equal(await collateralToken.balanceOf(trader), 100);
 
-    await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
+    await collateralToken.approve(conditionalTokens.address, 100, { from: trader });
 
     const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map((indexSet) =>
       toBN(indexSet)
     );
-    await predictionMarketSystem.splitPosition(
+    await conditionalTokens.splitPosition(
       collateralToken.address,
       `0x${'00'.repeat(32)}`,
       conditionsInfo[0].conditionId,
@@ -295,7 +291,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       parentCollectionId,
       parentIndexSet,
     ] of positionIds.map((positionId, i) => [positionId, collectionIds[i], partition1[i]])) {
-      await predictionMarketSystem.splitPosition(
+      await conditionalTokens.splitPosition(
         collateralToken.address,
         parentCollectionId,
         conditionsInfo[1].conditionId,
@@ -361,7 +357,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         collectionIds2[i],
         partition2[i],
       ])) {
-        assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
+        assert.equal(await conditionalTokens.balanceOf(trader, positionId), 100);
         const position = await getPosition(positionId);
 
         assert.deepInclude(position, {
@@ -406,7 +402,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
 
     await Promise.all(
       conditionsInfo.map(({ questionId, outcomeSlotCount }) =>
-        predictionMarketSystem.prepareCondition(oracle, questionId, outcomeSlotCount, {
+        conditionalTokens.prepareCondition(oracle, questionId, outcomeSlotCount, {
           from: creator,
         })
       )
@@ -415,12 +411,12 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     await collateralToken.mint(trader, 100, { from: minter });
     assert.equal(await collateralToken.balanceOf(trader), 100);
 
-    await collateralToken.approve(predictionMarketSystem.address, 100, { from: trader });
+    await collateralToken.approve(conditionalTokens.address, 100, { from: trader });
 
     const partition1 = ['0xffffffff000000000', '0x00000000fffffffff'].map((indexSet) =>
       toBN(indexSet)
     );
-    await predictionMarketSystem.splitPosition(
+    await conditionalTokens.splitPosition(
       collateralToken.address,
       `0x${'00'.repeat(32)}`,
       conditionsInfo[0].conditionId,
@@ -438,7 +434,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     );
 
     for (const parentCollectionId of collectionIds) {
-      await predictionMarketSystem.splitPosition(
+      await conditionalTokens.splitPosition(
         collateralToken.address,
         parentCollectionId,
         conditionsInfo[1].conditionId,
@@ -469,9 +465,9 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
 
       const parentPositionId = getPositionId(collateralToken.address, combinedCollectionId);
 
-      assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionId), 100);
+      assert.equal(await conditionalTokens.balanceOf(trader, parentPositionId), 100);
 
-      await predictionMarketSystem.splitPosition(
+      await conditionalTokens.splitPosition(
         collateralToken.address,
         parentCollectionId,
         conditionsInfo[0].conditionId,
@@ -480,7 +476,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         { from: trader }
       );
 
-      assert.equal(await predictionMarketSystem.balanceOf(trader, parentPositionId), 0);
+      assert.equal(await conditionalTokens.balanceOf(trader, parentPositionId), 0);
 
       await waitForGraphSync();
 
@@ -555,7 +551,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         collectionIds3[i],
         partition3[i],
       ])) {
-        assert.equal(await predictionMarketSystem.balanceOf(trader, positionId), 100);
+        assert.equal(await conditionalTokens.balanceOf(trader, positionId), 100);
         const position = await getPosition(positionId);
 
         assert.deepInclude(position, {

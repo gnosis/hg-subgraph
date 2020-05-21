@@ -3,9 +3,9 @@ import { Bytes, log } from '@graphprotocol/graph-ts';
 import {
   TransferSingle,
   TransferBatch
-} from './types/ConditionalTokens/ConditionalTokens';
+} from '../generated/ConditionalTokens/ConditionalTokens';
 
-import { User, Position, UserPosition } from './types/schema';
+import { User, Position, UserPosition } from '../generated/schema';
 
 import { bigIntToBytes32, concat, checkIfValueExistsInArray, zeroAsBigInt } from './utils';
 

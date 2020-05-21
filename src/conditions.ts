@@ -3,9 +3,9 @@ import { BigInt } from '@graphprotocol/graph-ts';
 import {
   ConditionPreparation,
   ConditionResolution
-} from './types/ConditionalTokens/ConditionalTokens';
+} from '../generated/ConditionalTokens/ConditionalTokens';
 
-import { Condition } from './types/schema';
+import { Condition } from '../generated/schema';
 
 import { sum } from './utils';
 

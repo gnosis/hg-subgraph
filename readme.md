@@ -1,6 +1,6 @@
-# Prediction Markets Subgraph
+# Hg Subgraph
 
-Subgraph for Gnosis Prediction Markets 2.0
+Subgraph for Gnosis Conditional Tokens
 
 ---
 
