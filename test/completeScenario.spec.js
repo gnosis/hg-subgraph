@@ -423,7 +423,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.sameMembers(positionGraphDataconditionIds, [globalConditionId.toLowerCase()]);
       assert.equal(positionGraphData.activeValue, 5);
       assert.equal(positionGraphData.collection.id, collectionId);
-      assert.lengthOf(positionGraphData.indexSets, 2);
+      assert.lengthOf(positionGraphData.indexSets, 1);
     }
 
     positionGraphData = (
@@ -504,7 +504,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(positionGraphData.activeValue, 0);
       assert.equal(positionGraphData.lifetimeValue, 5);
       assert.equal(positionGraphData.collection.id, collectionId);
-      assert.lengthOf(positionGraphData.indexSets, 2);
+      assert.lengthOf(positionGraphData.indexSets, 1);
     }
 
     await conditionalTokens.mergePositions(

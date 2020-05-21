@@ -45,7 +45,7 @@ type UserPosition @entity {
 type User @entity {
  id: ID!
  userPositions: [UserPosition!] @derivedFrom(field: "user")
- participatedConditions: [Condition!]
+ participatedConditions: [Condition!]!
  firstParticipation: BigInt!
  lastActive: BigInt!
 }
