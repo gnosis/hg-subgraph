@@ -40,6 +40,8 @@ function toPositionId(collateralToken: Address, collectionId: Bytes): Bytes {
 }
 
 export function handlePositionSplit(event: PositionSplit): void {
+  let conditionalTokens = ConditionalTokens.bind(event.address);
+
   let params = event.params;
   let partition = params.partition;
   let conditionId = params.conditionId.toHex();
@@ -53,12 +55,12 @@ export function handlePositionSplit(event: PositionSplit): void {
     user.participatedConditions = [];
   }
 
-  // Add this condition to participated conditions if they haven't participated in it yet
   if (!checkIfValueExistsInArray(user.participatedConditions, conditionId)) {
     let userParticipatedConditions = user.participatedConditions;
     userParticipatedConditions.push(conditionId);
     user.participatedConditions = userParticipatedConditions;
   }
+
   user.lastActive = event.block.timestamp;
   user.save();
 
@@ -66,19 +68,19 @@ export function handlePositionSplit(event: PositionSplit): void {
   let parentConditions: string[];
   let parentIndexSets: BigInt[];
 
-  let conditionalTokens = ConditionalTokens.bind(event.address);
-
   let completelySplitsCondition = isFullIndexSet(parentIndexSet, condition.outcomeSlotCount);
   let splittingFromRoot = isZeroCollectionId(params.parentCollectionId);
-
+  
   if (completelySplitsCondition) {
     if (splittingFromRoot) {
       let collateralToken = Collateral.load(params.collateralToken.toHex());
       if (collateralToken == null) {
+        // dif: merge errors on nonexistence
         collateralToken = new Collateral(params.collateralToken.toHex());
         collateralToken.splitCollateral = zeroAsBigInt;
         collateralToken.redeemedCollateral = zeroAsBigInt;
       }
+      // dif: splitCollateral vs redeemedCollateral(?)
       collateralToken.splitCollateral = collateralToken.splitCollateral.plus(params.amount);
       collateralToken.save();
 
@@ -88,15 +90,21 @@ export function handlePositionSplit(event: PositionSplit): void {
       let parentCollection = Collection.load(params.parentCollectionId.toHex());
       if (parentCollection == null) {
         log.error("expected collection {} to exist", [params.parentCollectionId.toHex()]);
+        // dif: merge should construct parent collection here
       }
       parentConditions = parentCollection.conditions;
       parentIndexSets = parentCollection.indexSets;
     }
   } else {
-    let collectionId = conditionalTokens.getCollectionId(params.parentCollectionId, params.conditionId, parentIndexSet);
+    let collectionId = conditionalTokens.getCollectionId(
+      params.parentCollectionId,
+      params.conditionId,
+      parentIndexSet
+    );
     let parentCollection = Collection.load(collectionId.toHex());
     if (parentCollection == null) {
       log.error("expected collection {} to exist", [collectionId.toHex()]);
+      // dif: merge can result in a new position/collection
     }
     let parentCollectionConditions = parentCollection.conditions;
     let parentCollectionIndexSets = parentCollection.indexSets;
@@ -114,7 +122,6 @@ export function handlePositionSplit(event: PositionSplit): void {
 
   for (let i = 0; i < partition.length; i++) {
     let indexSet = partition[i];
-    // Collection Section
     let collectionId = conditionalTokens.getCollectionId(
       params.parentCollectionId,
       params.conditionId,
@@ -122,6 +129,7 @@ export function handlePositionSplit(event: PositionSplit): void {
     );
     let collection = Collection.load(collectionId.toHex());
     if (collection == null) {
+      // dif: error for merge as this should exist already
       collection = new Collection(collectionId.toHex());
       let conditions = new Array<string>(parentConditions.length + 1);
       let indexSets = new Array<BigInt>(parentIndexSets.length + 1);
@@ -140,6 +148,7 @@ export function handlePositionSplit(event: PositionSplit): void {
     let positionId = toPositionId(params.collateralToken, collectionId);
     let position = Position.load(positionId.toHex());
     if (position == null) {
+      // dif: error for merge as this should exist already
       position = new Position(positionId.toHex());
       position.collateralToken = params.collateralToken;
       position.collection = collection.id;
@@ -152,19 +161,23 @@ export function handlePositionSplit(event: PositionSplit): void {
       position.activeValue = zeroAsBigInt;
       position.lifetimeValue = zeroAsBigInt;
     }
+    // dif: minus for merge
     position.activeValue = position.activeValue.plus(params.amount);
+    // dif: noop for merge
     position.lifetimeValue = position.lifetimeValue.plus(params.amount);
     position.save();
 
     // UserPosition Section
     let userPositionId = concat(params.stakeholder, positionId);
     let userPosition = UserPosition.load(userPositionId.toHex());
+
     if (userPosition == null) {
       userPosition = new UserPosition(userPositionId.toHex());
       userPosition.balance = zeroAsBigInt;
       userPosition.user = user.id;
       userPosition.position = position.id;
     }
+    // dif: minus for merge
     userPosition.balance = userPosition.balance.plus(params.amount);
     userPosition.save();
   }
@@ -174,25 +187,39 @@ export function handlePositionSplit(event: PositionSplit): void {
       conditionalTokens.getCollectionId(
         params.parentCollectionId,
         params.conditionId,
-        sum(partition),
+        parentIndexSet,
       );
 
     let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
     let parentPosition = Position.load(parentPositionId.toHex());
+    if (parentPosition == null) {
+      log.error("expected parent position {} to exist", [parentPositionId.toHex()]);
+      // dif: merge can result in a new position/collection
+    }
+    // dif: plus in merge
     parentPosition.activeValue = parentPosition.activeValue.minus(params.amount);
     parentPosition.save();
   
-    let parentUserPositionId = concat(params.stakeholder, parentPositionId);
-    let parentUserPosition = UserPosition.load(parentUserPositionId.toHex());
-    parentUserPosition.balance = parentUserPosition.balance.minus(params.amount);
-    parentUserPosition.save();
+    let userParentPositionId = concat(params.stakeholder, parentPositionId);
+    let userParentPosition = UserPosition.load(userParentPositionId.toHex());
+    if (userParentPosition == null) {
+      log.error("expected parent position {} of user {} to exist", [
+        parentPositionId.toHex(),
+        params.stakeholder.toHex(),
+      ]);
+      // dif: merge can result in a new user position/collection
+    }
+    // dif: plus in merge
+    userParentPosition.balance = userParentPosition.balance.minus(params.amount);
+    userParentPosition.save();
   }
 }
 
 export function handlePositionsMerge(event: PositionsMerge): void {
+  let conditionalTokens = ConditionalTokens.bind(event.address);
+
   let params = event.params;
   let partition = params.partition;
-  let totalIndexSet = sum(partition);
   let conditionId = params.conditionId.toHex();
   let condition = Condition.load(conditionId);
 
@@ -203,93 +230,110 @@ export function handlePositionsMerge(event: PositionsMerge): void {
     user.firstParticipation = event.block.timestamp;
     user.participatedConditions = [];
   }
+
+  if (!checkIfValueExistsInArray(user.participatedConditions, conditionId)) {
+    let userParticipatedConditions = user.participatedConditions;
+    userParticipatedConditions.push(conditionId);
+    user.participatedConditions = userParticipatedConditions;
+  }
+
   user.lastActive = event.block.timestamp;
   user.save();
 
-  let conditionalTokens = ConditionalTokens.bind(event.address);
+  let parentIndexSet = sum(partition);
+  let parentConditions: string[];
+  let parentIndexSets: BigInt[];
 
-  // This likewise splits into 3 sections (split fullIndexSet without a parent, split fullIndexSet with a parent, split partial indexSet)
-  if (isFullIndexSet(totalIndexSet, condition.outcomeSlotCount)) {
-    // Section: Covers merging a fullIndexSet without a parentCollection back into collateral
-    if (isZeroCollectionId(params.parentCollectionId)) {
-      // Collateral Section
+
+  let completelyMergesCondition = isFullIndexSet(parentIndexSet, condition.outcomeSlotCount);
+  let mergingToRoot = isZeroCollectionId(params.parentCollectionId);
+
+  if (completelyMergesCondition) {
+    if (mergingToRoot) {
       let collateralToken = Collateral.load(params.collateralToken.toHex());
       collateralToken.redeemedCollateral = collateralToken.redeemedCollateral.plus(params.amount);
       collateralToken.save();
 
-      for (var i = 0; i < partition.length; i++) {
-        // The collections and positions for this section have already been made by splitPosition event
-        let collectionId = conditionalTokens.getCollectionId(
-          params.parentCollectionId,
-          params.conditionId,
-          partition[i],
-        );
-        // Position Section
-        let positionId = toPositionId(params.collateralToken, collectionId);
-        let position = Position.load(positionId.toHex());
-        position.activeValue = position.activeValue.minus(params.amount);
-        position.save();
-        // UserPosition Section
-        let userPositionId = concat(params.stakeholder, positionId) as Bytes;
-        let userPosition = UserPosition.load(userPositionId.toHex());
-        userPosition.balance = userPosition.balance.minus(params.amount);
-        userPosition.save();
-      }
+      parentConditions = [];
+      parentIndexSets = [];
     } else {
-      // Section: Covers merging a fullIndexSet with a parentCollection into the parentCollection
-      for (var j = 0; j < partition.length; j++) {
-        // The collections and positions for this section have already been made by splitPosition event
-        let collectionId = conditionalTokens.getCollectionId(
-          params.parentCollectionId,
-          params.conditionId,
-          partition[j],
-        );
-        // Position Section
-        let positionId = toPositionId(params.collateralToken, collectionId);
-        let position = Position.load(positionId.toHex());
-        position.activeValue = position.activeValue.minus(params.amount);
-        position.save();
-        // UserPosition Section
-        let userPositionId = concat(params.stakeholder, positionId) as Bytes;
-        let userPosition = UserPosition.load(userPositionId.toHex());
-        userPosition.balance = userPosition.balance.minus(params.amount);
-        userPosition.save();
+      // completelyMergesCondition && !mergingFromRoot
+      let parentCollection = Collection.load(params.parentCollectionId.toHex());
+      if (parentCollection == null) {
+        log.error("not implemented yet", []);
+        // dif: merge should construct parent collection here
+        parentCollection = new Collection(params.parentCollectionId.toHex());
+        parentCollection.conditions = [];
+        parentCollection.indexSets = [];
       }
-      // Parent Section (Where the Merge goes into)
-      let parentCollectionId = params.parentCollectionId;
-      // Parent Position Section
-      let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
-      let parentCollectionIdPosition = Position.load(parentPositionId.toHex());
-      parentCollectionIdPosition.activeValue = parentCollectionIdPosition.activeValue.plus(
-        params.amount
-      );
-      parentCollectionIdPosition.save();
-      // Parent UserPosition Section
-      let parentUserPositionId = concat(params.stakeholder, parentPositionId) as Bytes;
-      let parentUserPosition = UserPosition.load(parentUserPositionId.toHex());
-      if (parentUserPosition == null) {
-        parentUserPosition = new UserPosition(parentUserPositionId.toHex());
-        parentUserPosition.balance = zeroAsBigInt;
-        parentUserPosition.position = parentCollectionIdPosition.id;
-        parentUserPosition.user = user.id;
-      }
-      parentUserPosition.balance = parentUserPosition.balance.plus(params.amount);
-      parentUserPosition.save();
+      parentConditions = parentCollection.conditions;
+      parentIndexSets = parentCollection.indexSets;
     }
   } else {
-    // Section: Covers merging a partially full indexSet (merges into the Union Position on the same level)
-
-    // Here, some extra details such as Collection and Position have to be created, because it's possible it didn't exist yet from splitPosition alone
-    // Union Position & Collection & UserPosition Section
-    let totalIndexSetCollectionId = conditionalTokens.getCollectionId(
+    let collectionId = conditionalTokens.getCollectionId(
       params.parentCollectionId,
       params.conditionId,
-      totalIndexSet,
+      parentIndexSet
     );
-    let totalIndexSetPositionId = toPositionId(params.collateralToken, totalIndexSetCollectionId);
-    let totalIndexSetPosition = Position.load(totalIndexSetPositionId.toHex());
-    // If the Position doens't exist yet, then the Collection doesn't either, and both must be created and populated with the correct Conditions / IndexSets
-    if (totalIndexSetPosition == null) {
+    let parentCollection = Collection.load(collectionId.toHex());
+    if (parentCollection == null) {
+      log.error("not implemented yet", []);
+      // dif: merge can result in a new position/collection
+      parentCollection = new Collection(collectionId.toHex());
+      parentCollection.conditions = ["foo"];
+      parentCollection.indexSets = [BigInt.fromI32(-1)];
+    }
+    let parentCollectionConditions = parentCollection.conditions;
+    let parentCollectionIndexSets = parentCollection.indexSets;
+    parentConditions = new Array<string>(parentCollection.conditions.length - 1);
+    parentIndexSets = new Array<BigInt>(parentCollection.indexSets.length - 1);
+
+    for (let i = 0, j = 0; i < parentCollection.conditions.length; i++) {
+      if (parentCollectionConditions[i] != conditionId) {
+        parentConditions[j] = parentCollectionConditions[i];
+        parentIndexSets[j] = parentCollectionIndexSets[i];
+        j++;
+      }
+    }
+  }
+
+  for (let i = 0; i < partition.length; i++) {
+    let collectionId = conditionalTokens.getCollectionId(
+      params.parentCollectionId,
+      params.conditionId,
+      partition[i],
+    );
+    // Position Section
+    let positionId = toPositionId(params.collateralToken, collectionId);
+    let position = Position.load(positionId.toHex());
+    position.activeValue = position.activeValue.minus(params.amount);
+    position.save();
+
+    // UserPosition Section
+    let userPositionId = concat(params.stakeholder, positionId);
+    let userPosition = UserPosition.load(userPositionId.toHex());
+
+    if (userPosition == null) {
+      userPosition = new UserPosition(userPositionId.toHex());
+      userPosition.balance = zeroAsBigInt;
+      userPosition.user = user.id;
+      userPosition.position = position.id;
+    }
+    userPosition.balance = userPosition.balance.minus(params.amount);
+    userPosition.save();
+  }
+
+  if (!completelyMergesCondition || !mergingToRoot) {
+    let parentCollectionId = completelyMergesCondition ? params.parentCollectionId :
+      conditionalTokens.getCollectionId(
+        params.parentCollectionId,
+        params.conditionId,
+        parentIndexSet,
+      );
+
+    let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
+    let parentPosition = Position.load(parentPositionId.toHex());
+    if (parentPosition == null) {
       // Collection Section
 
       // Load the parent positions Conditions and Collections
@@ -309,75 +353,39 @@ export function handlePositionsMerge(event: PositionsMerge): void {
       totalIndexSetCollectionConditions[
         totalIndexSetCollectionConditions.length
       ] = params.conditionId.toHex();
-      totalIndexSetCollectionIndexSets[totalIndexSetCollectionConditions.length] = totalIndexSet;
+      totalIndexSetCollectionIndexSets[totalIndexSetCollectionConditions.length] = parentIndexSet;
 
-      let totalIndexSetCollection = Collection.load(totalIndexSetCollectionId.toHex());
+      let totalIndexSetCollection = Collection.load(parentCollectionId.toHex());
       if (totalIndexSetCollection == null) {
-        totalIndexSetCollection = new Collection(totalIndexSetCollectionId.toHex());
+        totalIndexSetCollection = new Collection(parentCollectionId.toHex());
         totalIndexSetCollection.conditions = totalIndexSetCollectionConditions;
         totalIndexSetCollection.indexSets = totalIndexSetCollectionIndexSets;
         totalIndexSetCollection.save();
       }
       // Position Section
-      totalIndexSetPosition = new Position(totalIndexSetPositionId.toHex());
-      totalIndexSetPosition.collateralToken = params.collateralToken;
-      totalIndexSetPosition.collection = totalIndexSetCollection.id;
-      totalIndexSetPosition.conditions = totalIndexSetCollectionConditions;
-      totalIndexSetPosition.indexSets = totalIndexSetCollectionIndexSets;
-      totalIndexSetPosition.lifetimeValue = zeroAsBigInt;
-      totalIndexSetPosition.activeValue = zeroAsBigInt;
+      parentPosition = new Position(parentPositionId.toHex());
+      parentPosition.collateralToken = params.collateralToken;
+      parentPosition.collection = totalIndexSetCollection.id;
+      parentPosition.conditions = totalIndexSetCollectionConditions;
+      parentPosition.indexSets = totalIndexSetCollectionIndexSets;
+      parentPosition.lifetimeValue = zeroAsBigInt;
+      parentPosition.activeValue = zeroAsBigInt;
     }
-    totalIndexSetPosition.activeValue = totalIndexSetPosition.activeValue.plus(params.amount);
+    parentPosition.activeValue = parentPosition.activeValue.plus(params.amount);
 
-    totalIndexSetPosition.save();
+    parentPosition.save();
+
     // Union UserPosition Section
-    let unionPositionId = toPositionId(
-      params.collateralToken,
-      conditionalTokens.getCollectionId(
-        params.parentCollectionId,
-        params.conditionId,
-        totalIndexSet,
-      ),
-    );
-    let unionUserPositionId = concat(params.stakeholder, unionPositionId) as Bytes;
-    let unionUserPosition = UserPosition.load(unionUserPositionId.toHex());
-    if (unionUserPosition == null) {
-      unionUserPosition = new UserPosition(unionUserPositionId.toHex());
-      unionUserPosition.user = user.id;
-      unionUserPosition.position = totalIndexSetPosition.id;
-      unionUserPosition.balance = zeroAsBigInt;
+    let userParentPositionId = concat(params.stakeholder, parentPositionId);
+    let userParentPosition = UserPosition.load(userParentPositionId.toHex());
+    if (userParentPosition == null) {
+      userParentPosition = new UserPosition(userParentPositionId.toHex());
+      userParentPosition.user = user.id;
+      userParentPosition.position = parentPosition.id;
+      userParentPosition.balance = zeroAsBigInt;
     }
-    unionUserPosition.balance = unionUserPosition.balance.plus(params.amount);
-    unionUserPosition.save();
-
-    let partitionCopy: BigInt[] = [];
-    // This is the section of Positions that will be merged, they will already be in the system
-    for (var k = 0; k < partition.length; k++) {
-      partitionCopy[k] = partition[k];
-
-      let collectionId = conditionalTokens.getCollectionId(
-        params.parentCollectionId,
-        params.conditionId,
-        partitionCopy[k],
-      );
-      // Position Section
-      let positionId = toPositionId(params.collateralToken, collectionId);
-      let position = Position.load(positionId.toHex());
-      position.activeValue = position.activeValue.minus(params.amount);
-      position.save();
-      // // UserPosition Section
-      let userPositionId = concat(params.stakeholder, positionId) as Bytes;
-      let userPosition = UserPosition.load(userPositionId.toHex());
-
-      if (userPosition == null) {
-        userPosition = new UserPosition(userPositionId.toHex());
-        userPosition.balance = zeroAsBigInt;
-        userPosition.user = user.id;
-        userPosition.position = Position.load(positionId.toHex()).id;
-      }
-      userPosition.balance = userPosition.balance.minus(params.amount);
-      userPosition.save();
-    }
+    userParentPosition.balance = userParentPosition.balance.plus(params.amount);
+    userParentPosition.save();
   }
 }
 
