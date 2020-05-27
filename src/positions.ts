@@ -111,8 +111,8 @@ function operateOnSubtree(
       if (operation === SubtreeOperation.Split) {
         log.error("expected union collection {} to exist", [unionCollectionId.toHex()]);
       }
+      // TODO: implement
       log.error("not implemented yet", []);
-      // dif: merge can result in a new position/collection
       unionCollection = new Collection(unionCollectionId.toHex());
       unionCollection.conditions = ["ERROR"];
       unionCollection.indexSets = [BigInt.fromI32(-1)];
@@ -162,7 +162,7 @@ function operateOnSubtree(
     // Position Section
     let position = Position.load(positionId.toHex());
     if (position == null) {
-      if (operation === SubtreeOperation.Merge) {
+      if (operation !== SubtreeOperation.Split) {
         log.error("expected child position {} to exist", [positionId.toHex()]);
       }
 
@@ -213,7 +213,7 @@ function operateOnSubtree(
   if(changesDepth && rootBranch) {
     let collateral = Collateral.load(collateralToken.toHex());
     if (collateral == null) {
-      if (operation === SubtreeOperation.Merge) {
+      if (operation !== SubtreeOperation.Split) {
         log.error("expected collateral {} to exist", [collateralToken.toHex()]);
       }
   
@@ -221,7 +221,7 @@ function operateOnSubtree(
       collateral.splitCollateral = zeroAsBigInt;
       collateral.redeemedCollateral = zeroAsBigInt;
     }
-    // dif: splitCollateral vs redeemedCollateral(?)
+    // TODO: fix redeemedCollateral
     switch (operation) {
       case SubtreeOperation.Split:
         collateral.splitCollateral = collateral.splitCollateral.plus(amount);
@@ -246,8 +246,10 @@ function operateOnSubtree(
     let unionPositionId = toPositionId(collateralToken, unionCollectionId);
     let unionPosition = Position.load(unionPositionId.toHex());
     if (unionPosition == null) {
-      log.error("expected parent position {} to exist", [unionPositionId.toHex()]);
-      // dif: merge can result in a new position/collection
+      if (operation !== SubtreeOperation.Split) {
+        log.error("expected parent position {} to exist", [unionPositionId.toHex()]);
+      }
+
       unionPosition = new Position(unionPositionId.toHex());
       unionPosition.collateralToken = collateralToken;
       unionPosition.collection = parentCollectionId.toHex();
@@ -332,80 +334,17 @@ export function handlePositionsMerge(event: PositionsMerge): void {
 }
 
 export function handlePayoutRedemption(event: PayoutRedemption): void {
-  let conditionalTokens = ConditionalTokens.bind(event.address);
-
   let params = event.params;
-  let indexSets = params.indexSets;
-  let conditionId = params.conditionId.toHex();
-  let condition = Condition.load(conditionId);
 
-  // User Section
-  let user = User.load(params.redeemer.toHex());
-  if (user == null) {
-    user = new User(params.redeemer.toHex());
-    user.firstParticipation = event.block.timestamp;
-    user.participatedConditions = [];
-  }
-
-  if (!checkIfValueExistsInArray(user.participatedConditions, conditionId)) {
-    let userParticipatedConditions = user.participatedConditions;
-    userParticipatedConditions.push(conditionId);
-    user.participatedConditions = userParticipatedConditions;
-  }
-
-  user.lastActive = event.block.timestamp;
-  user.save();
-
-  let redeemingToRoot = isZeroCollectionId(params.parentCollectionId)
-
-  let parentCollectionId = params.parentCollectionId;
-
-  for (var i = 0; i < indexSets.length; i++) {
-    let collectionId = conditionalTokens.getCollectionId(
-      parentCollectionId,
-      params.conditionId,
-      indexSets[i],
-    );
-    let positionId = toPositionId(params.collateralToken, collectionId);
-    let position = Position.load(positionId.toHex());
-
-    let userPositionId = concat(params.redeemer, positionId);
-    let userPosition = UserPosition.load(userPositionId.toHex());
-
-    if (userPosition == null) {
-      userPosition = new UserPosition(userPositionId.toHex());
-      userPosition.position = position.id;
-      userPosition.user = user.id;
-      userPosition.balance = zeroAsBigInt;
-    }
-
-    position.activeValue = position.activeValue.minus(userPosition.balance);
-    position.save();
-    userPosition.balance = zeroAsBigInt;
-    userPosition.save();
-  }
-
-  if (redeemingToRoot) {
-    // Collateral Section
-    let collateralToken = Collateral.load(params.collateralToken.toHex());
-    collateralToken.redeemedCollateral = collateralToken.redeemedCollateral.plus(params.payout);
-    collateralToken.save();
-  } else {
-    let parentPositionId = toPositionId(params.collateralToken, parentCollectionId);
-    let parentPosition = Position.load(parentPositionId.toHex());
-    parentPosition.activeValue = parentPosition.activeValue.plus(params.payout);
-    parentPosition.save();
-
-    // Parent UserPosition Section
-    let parentPositionUserPositionId = concat(params.redeemer, parentPositionId);
-    let parentPositionUserPosition = UserPosition.load(parentPositionUserPositionId.toHex());
-    if (parentPositionUserPosition == null) {
-      parentPositionUserPosition = new UserPosition(parentPositionUserPositionId.toHex());
-      parentPositionUserPosition.position = parentPosition.id;
-      parentPositionUserPosition.user = user.id;
-      parentPositionUserPosition.balance = zeroAsBigInt;
-    }
-    parentPositionUserPosition.balance = parentPositionUserPosition.balance.plus(params.payout);
-    parentPositionUserPosition.save();
-  }
+  operateOnSubtree(
+    SubtreeOperation.Redeem,
+    event.block.timestamp,
+    ConditionalTokens.bind(event.address),
+    params.redeemer,
+    params.collateralToken,
+    params.parentCollectionId,
+    params.conditionId,
+    params.indexSets,
+    params.payout,
+  );
 }
