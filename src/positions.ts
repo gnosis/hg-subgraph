@@ -49,36 +49,36 @@ function operateOnSubtree(
   operation: SubtreeOperation,
   blockTimestamp: BigInt,
   conditionalTokens: ConditionalTokens,
-  stakeholder: Address,
+  user: Address,
   collateralToken: Address,
   parentCollectionId: Bytes,
   conditionId: Bytes,
-  partition: BigInt[],
+  indexSets: BigInt[],
   amount: BigInt,
 ): void {
   let conditionIdHex = conditionId.toHex();
   let condition = Condition.load(conditionIdHex);
 
-  let user = User.load(stakeholder.toHex());
-  if (user == null) {
-    user = new User(stakeholder.toHex());
-    user.firstParticipation = blockTimestamp;
-    user.participatedConditions = [];
+  let userEntity = User.load(user.toHex());
+  if (userEntity == null) {
+    userEntity = new User(user.toHex());
+    userEntity.firstParticipation = blockTimestamp;
+    userEntity.participatedConditions = [];
   }
 
-  if (!checkIfValueExistsInArray(user.participatedConditions, conditionIdHex)) {
-    let userParticipatedConditions = user.participatedConditions;
+  if (!checkIfValueExistsInArray(userEntity.participatedConditions, conditionIdHex)) {
+    let userParticipatedConditions = userEntity.participatedConditions;
     userParticipatedConditions.push(conditionIdHex);
-    user.participatedConditions = userParticipatedConditions;
+    userEntity.participatedConditions = userParticipatedConditions;
   }
 
-  user.lastActive = blockTimestamp;
-  user.save();
+  userEntity.lastActive = blockTimestamp;
+  userEntity.save();
 
   let parentConditions: string[];
   let parentIndexSets: BigInt[];
   
-  let unionIndexSet = sum(partition);
+  let unionIndexSet = sum(indexSets);
   let changesDepth = operation === SubtreeOperation.Redeem || isFullIndexSet(unionIndexSet, condition.outcomeSlotCount);
   let rootBranch = isZeroCollectionId(parentCollectionId);
   
@@ -131,8 +131,8 @@ function operateOnSubtree(
     }
   }
 
-  for (let i = 0; i < partition.length; i++) {
-    let indexSet = partition[i];
+  for (let i = 0; i < indexSets.length; i++) {
+    let indexSet = indexSets[i];
     let collectionId = conditionalTokens.getCollectionId(
       parentCollectionId,
       conditionId,
@@ -180,13 +180,13 @@ function operateOnSubtree(
     }
 
     // UserPosition Section
-    let userPositionId = concat(stakeholder, positionId);
+    let userPositionId = concat(user, positionId);
     let userPosition = UserPosition.load(userPositionId.toHex());
 
     if (userPosition == null) {
       userPosition = new UserPosition(userPositionId.toHex());
       userPosition.balance = zeroAsBigInt;
-      userPosition.user = user.id;
+      userPosition.user = userEntity.id;
       userPosition.position = position.id;
     }
 
@@ -273,15 +273,15 @@ function operateOnSubtree(
 
     unionPosition.save();
   
-    let userUnionPositionId = concat(stakeholder, unionPositionId);
+    let userUnionPositionId = concat(user, unionPositionId);
     let userUnionPosition = UserPosition.load(userUnionPositionId.toHex());
     if (userUnionPosition == null) {
       log.error("expected parent position {} of user {} to exist", [
         unionPositionId.toHex(),
-        stakeholder.toHex(),
+        user.toHex(),
       ]);
       userUnionPosition = new UserPosition(userUnionPositionId.toHex());
-      userUnionPosition.user = user.id;
+      userUnionPosition.user = userEntity.id;
       userUnionPosition.position = unionPosition.id;
       userUnionPosition.balance = zeroAsBigInt;
     }
