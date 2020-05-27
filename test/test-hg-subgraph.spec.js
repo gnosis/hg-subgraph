@@ -55,6 +55,7 @@ async function getCollection(collectionId) {
     collection(id: "${collectionId}") {
       id
       conditions { id }
+      conditionIds
       indexSets
     }
   }`)
@@ -69,6 +70,7 @@ async function getPosition(positionId) {
       collateralToken
       collection { id }
       conditions { id }
+      conditionIds
       indexSets
       lifetimeValue
       activeValue
@@ -214,6 +216,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       assert.deepEqual(collection, {
         id: collectionId,
         conditions: [{ id: conditionsInfo[0].conditionId }],
+        conditionIds: [conditionsInfo[0].conditionId],
         indexSets: [indexSet.toString()],
       });
     }
@@ -233,6 +236,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           id: collectionId,
         },
         conditions: [{ id: conditionsInfo[0].conditionId }],
+        conditionIds: [conditionsInfo[0].conditionId],
         indexSets: [indexSet.toString()],
         lifetimeValue: '100',
         activeValue: '100',
@@ -321,6 +325,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           id: parentCollectionId,
         },
         conditions: [{ id: conditionsInfo[0].conditionId }],
+        conditionIds: [conditionsInfo[0].conditionId],
         indexSets: [parentIndexSet.toString()],
         lifetimeValue: '100',
         activeValue: '0',
@@ -333,10 +338,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         const collection = await getCollection(collectionId);
         assert(collection, `collection ${collectionId} not found`);
         assert.equal(collection.conditions.length, 2);
+        assert.equal(collection.conditionIds.length, 2);
         assert.equal(collection.indexSets.length, 2);
         assert.sameDeepMembers(
-          collection.conditions.map((condition, i) => ({
-            conditionId: condition.id,
+          collection.conditionIds.map((conditionId, i) => ({
+            conditionId,
             indexSet: collection.indexSets[i],
           })),
           [
@@ -370,10 +376,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           activeValue: '100',
         });
 
+        assert.equal(position.conditions.length, position.conditionIds.length);
         assert.equal(position.conditions.length, position.indexSets.length);
         assert.sameDeepMembers(
-          position.conditions.map((condition, i) => ({
-            conditionId: condition.id,
+          position.conditionIds.map((conditionId, i) => ({
+            conditionId,
             indexSet: position.indexSets[i],
           })),
           [
@@ -491,10 +498,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         activeValue: '0',
       });
       assert.equal(parentPosition.conditions.length, 2);
+      assert.equal(parentPosition.conditionIds.length, 2);
       assert.equal(parentPosition.indexSets.length, 2);
       assert.sameDeepMembers(
-        parentPosition.conditions.map((condition, i) => ({
-          conditionId: condition.id,
+        parentPosition.conditionIds.map((conditionId, i) => ({
+          conditionId,
           indexSet: parentPosition.indexSets[i],
         })),
         [
@@ -527,10 +535,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         const collection = await getCollection(collectionId);
         assert(collection, `collection ${collectionId} not found`);
         assert.equal(collection.conditions.length, 2);
+        assert.equal(collection.conditionIds.length, 2);
         assert.equal(collection.indexSets.length, 2);
         assert.sameDeepMembers(
-          collection.conditions.map((condition, i) => ({
-            conditionId: condition.id,
+          collection.conditionIds.map((conditionId, i) => ({
+            conditionId,
             indexSet: collection.indexSets[i],
           })),
           [
@@ -564,10 +573,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           activeValue: '100',
         });
 
+        assert.equal(position.conditions.length, position.conditionIds.length);
         assert.equal(position.conditions.length, position.indexSets.length);
         assert.sameDeepMembers(
-          position.conditions.map((condition, i) => ({
-            conditionId: condition.id,
+          position.conditionIds.map((conditionId, i) => ({
+            conditionId,
             indexSet: position.indexSets[i],
           })),
           [

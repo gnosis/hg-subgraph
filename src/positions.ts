@@ -95,6 +95,7 @@ function operateOnSubtree(
         log.error("not implemented yet", []);
         parentCollection = new Collection(parentCollectionId.toHex());
         parentCollection.conditions = [];
+        parentCollection.conditionIds = [];
         parentCollection.indexSets = [];
       }
       parentConditions = parentCollection.conditions;
@@ -115,6 +116,7 @@ function operateOnSubtree(
       log.error("not implemented yet", []);
       unionCollection = new Collection(unionCollectionId.toHex());
       unionCollection.conditions = ["ERROR"];
+      unionCollection.conditionIds = ["ERROR"];
       unionCollection.indexSets = [BigInt.fromI32(-1)];
     }
     let parentCollectionConditions = unionCollection.conditions;
@@ -153,6 +155,7 @@ function operateOnSubtree(
       conditions[parentConditions.length] = conditionIdHex;
       indexSets[parentIndexSets.length] = indexSet;
       collection.conditions = conditions;
+      collection.conditionIds = conditions;
       collection.indexSets = indexSets;
       collection.save();
     }
@@ -173,6 +176,7 @@ function operateOnSubtree(
       let conditions = collection.conditions;
       let indexSets = collection.indexSets;
       position.conditions = conditions;
+      position.conditionIds = conditions;
       position.indexSets = indexSets;
 
       position.activeValue = zeroAsBigInt;
@@ -254,6 +258,7 @@ function operateOnSubtree(
       unionPosition.collateralToken = collateralToken;
       unionPosition.collection = parentCollectionId.toHex();
       unionPosition.conditions = parentConditions;
+      unionPosition.conditionIds = parentConditions;
       unionPosition.indexSets = parentIndexSets;
       unionPosition.lifetimeValue = zeroAsBigInt;
       unionPosition.activeValue = zeroAsBigInt;

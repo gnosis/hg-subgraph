@@ -21,7 +21,14 @@ type Condition @entity {
 
 type Collection @entity {
   id: ID!
+  # conditions is duplicated as conditionIds
+  # so that when querying the graph node,
+  # the graph does not attempt to join with the other table
+  # which would cause conditions to be returned
+  # sorted by ID, instead of in the same order as
+  # the raw field data.
   conditions: [Condition!]!
+  conditionIds: [ID!]!
   indexSets: [BigInt!]!
 }
 
@@ -29,7 +36,9 @@ type Position @entity {
   id: ID!
   collateralToken: Bytes!
   collection: Collection!
+  # see note above about conditions/conditionIds duplication
   conditions: [Condition!]!
+  conditionIds: [ID!]!
   indexSets: [BigInt!]!
   lifetimeValue: BigInt!
   activeValue: BigInt!
