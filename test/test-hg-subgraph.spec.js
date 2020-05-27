@@ -78,7 +78,7 @@ async function getPosition(positionId) {
 }
 
 describe('hg-subgraph conditions <> collections <> positions', function () {
-  this.timeout(5000);
+  this.timeout(10000);
   let accounts, conditionalTokens, collateralToken, minter;
 
   before(async function () {
