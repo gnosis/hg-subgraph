@@ -1,5 +1,5 @@
 const { assert } = require('chai');
-const axios = require('axios');
+const { gql } = require('apollo-boost');
 const TruffleContract = require('@truffle/contract');
 const ConditionalTokens = TruffleContract(
   require('@gnosis.pm/conditional-tokens-contracts/build/contracts/ConditionalTokens.json')
@@ -17,66 +17,82 @@ const {
   combineCollectionIds,
 } = require('@gnosis.pm/conditional-tokens-contracts/utils/id-helpers')(web3.utils);
 
-const { waitForGraphSync } = require('./utils')({ web3 });
-
-async function querySubgraph(query) {
-  const response = await axios.post('http://localhost:8000/subgraphs/name/gnosis/hg', {
-    query,
-  });
-  return response.data.data;
-}
+const { waitForGraphSync, subgraphClient } = require('./utils')({ web3 });
 
 async function getCondition(conditionId) {
   return (
-    await querySubgraph(`{
-    condition(id:"${conditionId}") {
-      id
-      creator
-      oracle
-      questionId
-      outcomeSlotCount
-      resolved
-      payoutNumerators
-      payoutDenominator
-      createTransaction
-      creationTimestamp
-      creationBlockNumber
-      resolveTransaction
-      resolveTimestamp
-      collections { id }
-    }
-  }`)
-  ).condition;
+    await subgraphClient.query({
+      query: gql`
+        query($conditionId: ID) {
+          condition(id: $conditionId) {
+            id
+            creator
+            oracle
+            questionId
+            outcomeSlotCount
+            resolved
+            payoutNumerators
+            payoutDenominator
+            createTransaction
+            creationTimestamp
+            creationBlockNumber
+            resolveTransaction
+            resolveTimestamp
+            collections {
+              id
+            }
+          }
+        }
+      `,
+      variables: { conditionId },
+    })
+  ).data.condition;
 }
 
 async function getCollection(collectionId) {
   return (
-    await querySubgraph(`{
-    collection(id: "${collectionId}") {
-      id
-      conditions { id }
-      conditionIds
-      indexSets
-    }
-  }`)
-  ).collection;
+    await subgraphClient.query({
+      query: gql`
+        query($collectionId: ID) {
+          collection(id: $collectionId) {
+            id
+            conditions {
+              id
+            }
+            conditionIds
+            indexSets
+          }
+        }
+      `,
+      variables: { collectionId },
+    })
+  ).data.collection;
 }
 
 async function getPosition(positionId) {
   return (
-    await querySubgraph(`{
-    position(id: "${positionId}") {
-      id
-      collateralToken
-      collection { id }
-      conditions { id }
-      conditionIds
-      indexSets
-      lifetimeValue
-      activeValue
-    }
-  }`)
-  ).position;
+    await subgraphClient.query({
+      query: gql`
+        query($positionId: ID) {
+          position(id: $positionId) {
+            id
+            collateralToken
+            collection {
+              id
+            }
+            conditions {
+              id
+            }
+            conditionIds
+            indexSets
+            lifetimeValue
+            activeValue
+          }
+        }
+      `,
+      variables: { positionId },
+    })
+  ).data.position;
 }
 
 describe('hg-subgraph conditions <> collections <> positions', function () {
@@ -93,7 +109,17 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
   });
 
   it('allows GraphQL queries', async () => {
-    assert(await querySubgraph('{conditions(first:1){id}}'));
+    assert(
+      await subgraphClient.query({
+        query: gql`
+          {
+            conditions(first: 1) {
+              id
+            }
+          }
+        `,
+      })
+    );
   });
 
   it('will index conditions upon preparation and update them upon resolution', async () => {
@@ -116,6 +142,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     let condition = await getCondition(conditionId);
 
     assert.deepEqual(condition, {
+      __typename: 'Condition',
       id: conditionId,
       creator: creator.toLowerCase(),
       oracle: oracle.toLowerCase(),
@@ -144,6 +171,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     condition = await getCondition(conditionId);
 
     assert.deepEqual(condition, {
+      __typename: 'Condition',
       id: conditionId,
       creator: creator.toLowerCase(),
       oracle: oracle.toLowerCase(),
@@ -214,8 +242,14 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
     for (const [collectionId, indexSet] of collectionIds.map((c, i) => [c, partition1[i]])) {
       const collection = await getCollection(collectionId);
       assert.deepEqual(collection, {
+        __typename: 'Collection',
         id: collectionId,
-        conditions: [{ id: conditionsInfo[0].conditionId }],
+        conditions: [
+          {
+            __typename: 'Condition',
+            id: conditionsInfo[0].conditionId,
+          },
+        ],
         conditionIds: [conditionsInfo[0].conditionId],
         indexSets: [indexSet.toString()],
       });
@@ -230,12 +264,19 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       const position = await getPosition(positionId);
 
       assert.deepEqual(position, {
+        __typename: 'Position',
         id: positionId,
         collateralToken: collateralToken.address.toLowerCase(),
         collection: {
+          __typename: 'Collection',
           id: collectionId,
         },
-        conditions: [{ id: conditionsInfo[0].conditionId }],
+        conditions: [
+          {
+            __typename: 'Condition',
+            id: conditionsInfo[0].conditionId,
+          },
+        ],
         conditionIds: [conditionsInfo[0].conditionId],
         indexSets: [indexSet.toString()],
         lifetimeValue: '100',
@@ -319,12 +360,19 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
 
       const parentPosition = await getPosition(parentPositionId);
       assert.deepEqual(parentPosition, {
+        __typename: 'Position',
         id: parentPositionId,
         collateralToken: collateralToken.address.toLowerCase(),
         collection: {
+          __typename: 'Collection',
           id: parentCollectionId,
         },
-        conditions: [{ id: conditionsInfo[0].conditionId }],
+        conditions: [
+          {
+            __typename: 'Condition',
+            id: conditionsInfo[0].conditionId,
+          },
+        ],
         conditionIds: [conditionsInfo[0].conditionId],
         indexSets: [parentIndexSet.toString()],
         lifetimeValue: '100',
@@ -367,9 +415,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         const position = await getPosition(positionId);
 
         assert.deepInclude(position, {
+          __typename: 'Position',
           id: positionId,
           collateralToken: collateralToken.address.toLowerCase(),
           collection: {
+            __typename: 'Collection',
             id: collectionId,
           },
           lifetimeValue: '100',
@@ -489,9 +539,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
 
       const parentPosition = await getPosition(parentPositionId);
       assert.deepInclude(parentPosition, {
+        __typename: 'Position',
         id: parentPositionId,
         collateralToken: collateralToken.address.toLowerCase(),
         collection: {
+          __typename: 'Collection',
           id: combinedCollectionId,
         },
         lifetimeValue: '100',
@@ -564,9 +616,11 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         const position = await getPosition(positionId);
 
         assert.deepInclude(position, {
+          __typename: 'Position',
           id: positionId,
           collateralToken: collateralToken.address.toLowerCase(),
           collection: {
+            __typename: 'Collection',
             id: collectionId,
           },
           lifetimeValue: '100',
