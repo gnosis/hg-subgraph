@@ -101,6 +101,36 @@ describe('Complete scenario tests for accurate mappings', function () {
     collateralToken = await ERC20Mintable.new({ from: minter });
   });
 
+  let trader1StartingNumParticipatedConditions = 0;
+  let trader1StartingNumPositions = 0;
+  let trader2StartingNumParticipatedConditions = 0;
+  let trader2StartingNumPositions = 0;
+  step('get starting vars of traders off of graph', async function () {
+    const { user: user1 } = (
+      await subgraphClient.query({
+        query: userQuery,
+        variables: { userId: trader1.toLowerCase() },
+      })
+    ).data;
+
+    if (user1 != null) {
+      trader1StartingNumParticipatedConditions = user1.participatedConditions.length;
+      trader1StartingNumPositions = user1.userPositions.length;
+    }
+
+    const { user: user2 } = (
+      await subgraphClient.query({
+        query: userQuery,
+        variables: { userId: trader2.toLowerCase() },
+      })
+    ).data;
+
+    if (user2 != null) {
+      trader2StartingNumParticipatedConditions = user2.participatedConditions.length;
+      trader2StartingNumPositions = user2.userPositions.length;
+    }
+  });
+
   let conditionsInfo, conditionId1, conditionId2;
   step('prepare conditions', async function () {
     conditionsInfo = Array.from({ length: 2 }, () => {
@@ -119,14 +149,6 @@ describe('Complete scenario tests for accurate mappings', function () {
 
     conditionId1 = conditionsInfo[0].id;
     conditionId2 = conditionsInfo[1].id;
-  });
-
-  step('report payouts on conditions', async function () {
-    for (const { questionId, payouts } of conditionsInfo) {
-      await conditionalTokens.reportPayouts(questionId, payouts, {
-        from: oracle,
-      });
-    }
   });
 
   step('mint T1 $100', async function () {
@@ -195,26 +217,21 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(userPosition.user.id, trader1.toLowerCase());
     }
 
-    let userGraphData = (
+    const { user } = (
       await subgraphClient.query({
         query: userQuery,
         variables: { userId: trader1.toLowerCase() },
       })
-    ).data.user;
+    ).data;
 
-    // assert.lengthOf(
-    //   userGraphData.participatedConditions,
-    //   1,
-    //   "User.ParticipatedConditions length isn't accurate"
-    // );
-    // assert.lengthOf(userGraphData.userPositions, 2, "User.UserPositions length isn't accurate");
-    let userGraphDataConditions = userGraphData.participatedConditions.map((condition) => {
-      return condition.id;
-    });
-    assert.includeMembers(userGraphDataConditions, [conditionId1]);
+    assert.lengthOf(user.participatedConditions, trader1StartingNumParticipatedConditions + 1);
+    assert.lengthOf(user.userPositions, trader1StartingNumPositions + 2);
+    assert.includeDeepMembers(user.participatedConditions, [
+      { __typename: 'Condition', id: conditionId1 },
+    ]);
     assert.includeMembers(
-      userGraphData.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
-      [...positionIds1]
+      user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
+      positionIds1
     );
   });
 
@@ -247,24 +264,20 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph T1 user data', async () => {
-    let userGraphData = (
+    let user = (
       await subgraphClient.query({
         query: userQuery,
         variables: { userId: trader1.toLowerCase() },
       })
     ).data.user;
-    // assert.lengthOf(
-    //   userGraphData.participatedConditions,
-    //   2,
-    //   "User.ParticipatedConditions length isn't accurate"
-    // );
-    // assert.lengthOf(userGraphData.userPositions, 4, "User.UserPositions length isn't accurate");
-    let userGraphDataConditions = userGraphData.participatedConditions.map((condition) => {
-      return condition.id;
-    });
-    assert.includeMembers(userGraphDataConditions, [conditionId1, conditionId2]);
+    assert.lengthOf(user.participatedConditions, trader1StartingNumParticipatedConditions + 2);
+    assert.lengthOf(user.userPositions, trader1StartingNumPositions + 4);
+    assert.includeDeepMembers(user.participatedConditions, [
+      { __typename: 'Condition', id: conditionId1 },
+      { __typename: 'Condition', id: conditionId2 },
+    ]);
     assert.includeMembers(
-      userGraphData.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
+      user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [...positionIds1, ...positionIds2]
     );
   });
@@ -276,7 +289,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       trader1,
       parentPositionFromSplit.slice(2)
     );
-    let splitPositionGraphData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -285,18 +298,18 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(splitPositionGraphData.position.lifetimeValue, 50);
-    assert.equal(splitPositionGraphData.position.activeValue, 25);
-    assert.equal(splitPositionGraphData.userPosition.balance, 25);
-    assert.include(positionIds1, splitPositionGraphData.userPosition.position.id);
-    assert.equal(splitPositionGraphData.userPosition.user.id, trader1.toLowerCase());
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(position.activeValue, 25);
+    assert.equal(userPosition.balance, 25);
+    assert.include(positionIds1, userPosition.position.id);
+    assert.equal(userPosition.user.id, trader1.toLowerCase());
   });
 
   step('check graph T1 C1(a) data has not changed', async () => {
     const notSplitPosition = getPositionId(collateralToken.address, collectionNotSplitOn);
     const usernotSplitPosition = toUserPositionId(trader1, notSplitPosition);
     assert.equal(await conditionalTokens.balanceOf(trader1, notSplitPosition), 50);
-    let notSplitPositionGraphData = (
+    let { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -305,11 +318,11 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(notSplitPositionGraphData.position.lifetimeValue, 50);
-    assert.equal(notSplitPositionGraphData.position.activeValue, 50);
-    assert.equal(notSplitPositionGraphData.position.id, notSplitPosition.toLowerCase());
-    assert.equal(notSplitPositionGraphData.userPosition.balance, 50);
-    assert.equal(notSplitPositionGraphData.userPosition.position.id, notSplitPosition);
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(position.activeValue, 50);
+    assert.equal(position.id, notSplitPosition.toLowerCase());
+    assert.equal(userPosition.balance, 50);
+    assert.equal(userPosition.position.id, notSplitPosition);
   });
 
   step('check graph T1 C1(b|c)&C2 positions data', async () => {
@@ -328,10 +341,10 @@ describe('Complete scenario tests for accurate mappings', function () {
 
       assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 2);
-      const positionGraphDataconditionIds = position.conditions.map((condition) => {
+      const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
       });
-      assert.sameMembers(positionGraphDataconditionIds, [conditionId1, conditionId2]);
+      assert.sameMembers(positionConditionIds, [conditionId1, conditionId2]);
       assert.equal(position.activeValue, 25);
       assert.equal(position.collection.id, collectionId);
       assert.include(partition, parseInt(position.indexSets));
@@ -368,25 +381,21 @@ describe('Complete scenario tests for accurate mappings', function () {
   step('check graph T1 user data', async () => {
     await waitForGraphSync();
 
-    let userGraphData = (
+    const { user } = (
       await subgraphClient.query({
         query: userQuery,
         variables: { userId: trader1.toLowerCase() },
       })
-    ).data.user;
+    ).data;
 
-    // assert.lengthOf(
-    //   userGraphData.participatedConditions,
-    //   2,
-    //   "User.ParticipatedConditions length isn't accurate"
-    // );
-    let userGraphDataConditions = userGraphData.participatedConditions.map((condition) => {
+    assert.lengthOf(user.participatedConditions, trader1StartingNumParticipatedConditions + 2);
+    let participatedConditionIds = user.participatedConditions.map((condition) => {
       return condition.id;
     });
-    assert.includeMembers(userGraphDataConditions, [conditionId1, conditionId2]);
-    // assert.lengthOf(userGraphData.userPositions, 6, "User.UserPositions length isn't accurate");
+    assert.includeMembers(participatedConditionIds, [conditionId1, conditionId2]);
+    assert.lengthOf(user.userPositions, trader1StartingNumPositions + 6);
     assert.includeMembers(
-      userGraphData.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
+      user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [...positionIds1, ...positionIds2, ...positionIds3]
     );
   });
@@ -404,10 +413,10 @@ describe('Complete scenario tests for accurate mappings', function () {
 
       assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 1);
-      const positionGraphDataconditionIds = position.conditions.map((condition) => {
+      const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
       });
-      assert.sameMembers(positionGraphDataconditionIds, [conditionId1]);
+      assert.sameMembers(positionConditionIds, [conditionId1]);
       assert.equal(position.activeValue, 5);
       assert.equal(position.collection.id, collectionId);
       assert.lengthOf(position.indexSets, 1);
@@ -419,7 +428,7 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph T1 C1(b|c) position data', async () => {
-    let positionGraphData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -428,11 +437,11 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(positionGraphData.position.activeValue, 20);
-    assert.equal(positionGraphData.position.lifetimeValue, 50);
-    assert.equal(positionGraphData.userPosition.balance, 20);
-    assert.lengthOf(positionGraphData.position.conditions, 1);
-    assert.equal(positionGraphData.userPosition.position.id, positionIds1[0]);
+    assert.equal(position.activeValue, 20);
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(userPosition.balance, 20);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(userPosition.position.id, positionIds1[0]);
   });
 
   step('T1 merge [$5:C1(b), $5:C1(c)] -C1-> $5:C1(b|c)', async () => {
@@ -463,10 +472,10 @@ describe('Complete scenario tests for accurate mappings', function () {
 
       assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 1);
-      const positionGraphDataconditionIds = position.conditions.map((condition) => {
+      const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
       });
-      assert.sameMembers(positionGraphDataconditionIds, [conditionId1]);
+      assert.sameMembers(positionConditionIds, [conditionId1]);
       assert.equal(position.activeValue, 0);
       assert.equal(position.lifetimeValue, 5);
       assert.equal(position.collection.id, collectionId);
@@ -508,10 +517,10 @@ describe('Complete scenario tests for accurate mappings', function () {
       ).data;
       assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 2);
-      const positionGraphDataconditionIds = position.conditions.map((condition) => {
+      const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
       });
-      assert.sameMembers(positionGraphDataconditionIds, [conditionId1, conditionId2]);
+      assert.sameMembers(positionConditionIds, [conditionId1, conditionId2]);
       assert.equal(position.activeValue, 20);
       assert.equal(position.lifetimeValue, 25);
       assert.equal(position.collection.id, collectionId);
@@ -525,7 +534,7 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph T1 C1(b|c) position data', async () => {
-    let positionGraphData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -534,11 +543,11 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(positionGraphData.position.activeValue, 30);
-    assert.equal(positionGraphData.position.lifetimeValue, 50);
-    assert.equal(positionGraphData.userPosition.balance, 30);
-    assert.lengthOf(positionGraphData.position.conditions, 1);
-    assert.equal(positionGraphData.userPosition.position.id, positionIds1[0]);
+    assert.equal(position.activeValue, 30);
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(userPosition.balance, 30);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(userPosition.position.id, positionIds1[0]);
   });
 
   step('T1 merge [$10:C1(b|c), $10:C1(a)] -C1-> $10', async () => {
@@ -557,7 +566,7 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph T1 C1(b|c) position data', async () => {
-    let positionGraphData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -566,15 +575,15 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(positionGraphData.position.activeValue, 20);
-    assert.equal(positionGraphData.position.lifetimeValue, 50);
-    assert.equal(positionGraphData.userPosition.balance, 20);
-    assert.lengthOf(positionGraphData.position.conditions, 1);
-    assert.equal(positionGraphData.userPosition.position.id, positionIds1[0]);
+    assert.equal(position.activeValue, 20);
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(userPosition.balance, 20);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(userPosition.position.id, positionIds1[0]);
   });
 
   step('check graph T1 C1(a) position data', async () => {
-    let positionGraphData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -583,11 +592,11 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(positionGraphData.position.activeValue, 40);
-    assert.equal(positionGraphData.position.lifetimeValue, 50);
-    assert.equal(positionGraphData.userPosition.balance, 40);
-    assert.lengthOf(positionGraphData.position.conditions, 1);
-    assert.equal(positionGraphData.userPosition.position.id, positionIds1[1]);
+    assert.equal(position.activeValue, 40);
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(userPosition.balance, 40);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(userPosition.position.id, positionIds1[1]);
   });
 
   step('T1 transfers $10:C1(b|c) to T2', async () => {
@@ -605,7 +614,7 @@ describe('Complete scenario tests for accurate mappings', function () {
   step('check graph T2 C1(b|c) position data', async () => {
     // assert that a new UserPosition and User have been created for trader2
     const trader2UserPositionId = toUserPositionId(trader2, positionIds1[0]);
-    let trader2UserPositionData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -616,30 +625,26 @@ describe('Complete scenario tests for accurate mappings', function () {
     ).data;
     assert.equal(await conditionalTokens.balanceOf(trader2, positionIds1[0]), 10);
     assert.equal(await conditionalTokens.balanceOf(trader1, positionIds1[0]), 10);
-    assert.equal(trader2UserPositionData.position.id.toLowerCase(), positionIds1[0]);
-    assert.equal(trader2UserPositionData.userPosition.balance, 10);
-    assert.equal(trader2UserPositionData.userPosition.user.id, trader2.toLowerCase());
+    assert.equal(position.id.toLowerCase(), positionIds1[0]);
+    assert.equal(userPosition.balance, 10);
+    assert.equal(userPosition.user.id, trader2.toLowerCase());
   });
 
   step('check graph T2 user data', async () => {
-    let user2GraphData = (
+    const { user } = (
       await subgraphClient.query({
         query: userQuery,
         variables: { userId: trader2.toLowerCase() },
       })
-    ).data.user;
-    // assert.lengthOf(
-    //   user2GraphData.participatedConditions,
-    //   1,
-    //   "User.ParticipatedConditions length isn't accurate"
-    // );
-    // assert.lengthOf(user2GraphData.userPositions, 1, "User.UserPositions length isn't accurate");
-    let userGraphDataConditions = user2GraphData.participatedConditions.map((condition) => {
+    ).data;
+    assert.lengthOf(user.participatedConditions, trader2StartingNumParticipatedConditions + 1);
+    assert.lengthOf(user.userPositions, trader2StartingNumPositions + 1);
+    let participatedConditionIds = user.participatedConditions.map((condition) => {
       return condition.id;
     });
-    assert.includeMembers(userGraphDataConditions, [conditionId1]);
+    assert.includeMembers(participatedConditionIds, [conditionId1]);
     assert.includeMembers(
-      user2GraphData.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
+      user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [positionIds1[0]]
     );
   });
@@ -663,24 +668,20 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph T2 user data', async () => {
-    let user2GraphData = (
+    const { user } = (
       await subgraphClient.query({
         query: userQuery,
         variables: { userId: trader2.toLowerCase() },
       })
-    ).data.user;
-    // assert.lengthOf(
-    //   user2GraphData.participatedConditions,
-    //   2,
-    //   "User.ParticipatedConditions length isn't accurate"
-    // );
-    // assert.lengthOf(user2GraphData.userPositions, 3, "User.UserPositions length isn't accurate");
-    let userGraphDataConditions = user2GraphData.participatedConditions.map((condition) => {
+    ).data;
+    assert.lengthOf(user.participatedConditions, trader2StartingNumParticipatedConditions + 2);
+    assert.lengthOf(user.userPositions, trader2StartingNumPositions + 3);
+    let participatedConditionIds = user.participatedConditions.map((condition) => {
       return condition.id;
     });
-    assert.includeMembers(userGraphDataConditions, [conditionId1, conditionId2]);
+    assert.includeMembers(participatedConditionIds, [conditionId1, conditionId2]);
     assert.includeMembers(
-      user2GraphData.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
+      user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [positionIds1[0], ...positionIds2]
     );
   });
@@ -705,14 +706,22 @@ describe('Complete scenario tests for accurate mappings', function () {
 
       assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 2);
-      const positionGraphDataconditionIds = position.conditions.map((condition) => {
+      const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
       });
-      assert.sameMembers(positionGraphDataconditionIds, [conditionId1, conditionId2]);
+      assert.sameMembers(positionConditionIds, [conditionId1, conditionId2]);
       assert.equal(position.activeValue, 20);
       assert.equal(position.lifetimeValue, 25);
       assert.equal(position.collection.id, collectionId);
       assert.lengthOf(position.indexSets, 2);
+    }
+  });
+
+  step('report payouts on conditions', async function () {
+    for (const { questionId, payouts } of conditionsInfo) {
+      await conditionalTokens.reportPayouts(questionId, payouts, {
+        from: oracle,
+      });
     }
   });
 
@@ -731,7 +740,7 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph T2 C1:(b|c) position data', async () => {
-    let positionGraphData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -742,11 +751,11 @@ describe('Complete scenario tests for accurate mappings', function () {
     ).data;
     assert.equal(await conditionalTokens.balanceOf(trader2, positionIds1[0]), 15);
     assert.equal(await conditionalTokens.balanceOf(trader1, positionIds1[0]), 10);
-    assert.equal(positionGraphData.position.activeValue, 25);
-    assert.equal(positionGraphData.position.lifetimeValue, 50);
-    assert.lengthOf(positionGraphData.position.conditions, 1);
-    assert.equal(positionGraphData.userPosition.balance, 15);
-    assert.equal(positionGraphData.userPosition.position.id, positionIds1[0]);
+    assert.equal(position.activeValue, 25);
+    assert.equal(position.lifetimeValue, 50);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(userPosition.balance, 15);
+    assert.equal(userPosition.position.id, positionIds1[0]);
   });
 
   step('T2 redeems [C1(b|c), C1(a)] -C1-> $', async () => {
@@ -764,7 +773,7 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph T2 C1:(b|c) position data', async () => {
-    let positionGraphData = (
+    const { position, userPosition } = (
       await subgraphClient.query({
         query: positionAndUserPositionQuery,
         variables: {
@@ -775,11 +784,11 @@ describe('Complete scenario tests for accurate mappings', function () {
     ).data;
     assert.equal(await conditionalTokens.balanceOf(trader2, positionIds1[0]), 0);
     assert.equal(await conditionalTokens.balanceOf(trader1, positionIds1[0]), 10);
-    assert.equal(positionGraphData.position.activeValue, 10);
-    assert.equal(positionGraphData.position.lifetimeValue, 50);
-    assert.lengthOf(positionGraphData.position.conditions, 1);
-    assert.equal(positionGraphData.userPosition.balance, 0);
-    assert.equal(positionGraphData.userPosition.position.id, positionIds1[0]);
+    assert.equal(position.activeValue, 10);
+    assert.equal(position.lifetimeValue, 50);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(userPosition.balance, 0);
+    assert.equal(userPosition.position.id, positionIds1[0]);
   });
 
   step('check graph collateral data', async () => {
