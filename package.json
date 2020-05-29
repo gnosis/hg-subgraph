@@ -23,7 +23,7 @@
     "bootstrap-test": "wait-on http-get://localhost:8000 && npm run create-local",
     "test-fresh-deploy": "wait-on tcp:8545 && npm run migrate && npm run test-fresh-graph",
     "test-fresh-graph": "npm run codegen && wait-on tcp:5001 && npm run deploy-local && npm run test-existing-graph",
-    "test-existing-graph": "mocha --exit",
+    "test-existing-graph": "mocha --require mocha-steps --exit",
     "test": "npm run bootstrap-test && npm run test-fresh-deploy",
     "publish-graph:rinkeby": "npm run codegen:rinkeby && npm run deploy:rinkeby",
     "publish-graph:mainnet": "npm run codegen:mainnet && npm run deploy:mainnet"
@@ -46,6 +46,7 @@
     "husky": "^4.2.5",
     "lint-staged": "^10.2.6",
     "mocha": "^7.2.0",
+    "mocha-steps": "^1.3.0",
     "mustache": "^4.0.1",
     "node-fetch": "^2.6.0",
     "openzeppelin-solidity": "^3.0.1",
