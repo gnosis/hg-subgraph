@@ -230,7 +230,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       });
     });
 
-    context('with a trader splitting $100 through C1', function () {
+    context('splitting $ -> C1(a|b), C1(c)', function () {
       let trader;
       beforeEach('mint $100 for trader', async function () {
         trader = accounts[2];
@@ -314,7 +314,142 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         }
       });
 
-      context('with trader splitting split positions further with 2nd condition', function () {
+      context('splitting C1(a|b) -> C1(a), C1(b) positions', function () {
+        const partialPartition = [0b001, 0b010];
+        let partialPartitionUnion;
+        beforeEach('verify partition union targets previous position', function () {
+          partialPartitionUnion = partialPartition.reduce((a, b) => a | b, 0);
+          assert.equal(partialPartitionUnion, partition1[0]);
+        });
+
+        let partialSplitInfo;
+        beforeEach('split C1(a|b)&C2 -> C1(a)&C2, C1(b)&C2', async function () {
+          const unionCollectionId = getCollectionId(
+            conditionsInfo[0].conditionId,
+            partialPartitionUnion
+          );
+
+          const unionPositionId = getPositionId(collateralToken.address, unionCollectionId);
+
+          assert.equal(await conditionalTokens.balanceOf(trader, unionPositionId), 100);
+
+          await conditionalTokens.splitPosition(
+            collateralToken.address,
+            rootCollectionId,
+            conditionsInfo[0].conditionId,
+            partialPartition,
+            100,
+            { from: trader }
+          );
+
+          const unionInfo = {
+            collectionId: unionCollectionId,
+            positionId: unionPositionId,
+          };
+
+          partialSplitInfo = {
+            union: unionInfo,
+            children: partialPartition.map((indexSet) => {
+              const collectionId = getCollectionId(conditionsInfo[0].conditionId, indexSet);
+              const positionId = getPositionId(collateralToken.address, collectionId);
+              return {
+                union: unionInfo,
+                indexSet,
+                collectionId,
+                positionId,
+              };
+            }),
+          };
+        });
+
+        it('updates graph accordingly', async function () {
+          await waitForGraphSync();
+
+          const {
+            collectionId: unionCollectionId,
+            positionId: unionPositionId,
+          } = partialSplitInfo.union;
+
+          const unionPosition = await getPosition(unionPositionId);
+          assert.deepInclude(unionPosition, {
+            __typename: 'Position',
+            id: unionPositionId,
+            collateralToken: collateralToken.address.toLowerCase(),
+            collection: {
+              __typename: 'Collection',
+              id: unionCollectionId,
+            },
+            lifetimeValue: '100',
+            activeValue: '0',
+          });
+          assert.equal(unionPosition.conditions.length, 1);
+          assert.equal(unionPosition.conditionIds.length, 1);
+          assert.equal(unionPosition.indexSets.length, 1);
+          assert.deepEqual(
+            unionPosition.conditionIds.map((conditionId, i) => ({
+              conditionId,
+              indexSet: unionPosition.indexSets[i],
+            })),
+            [
+              {
+                conditionId: conditionsInfo[0].conditionId,
+                indexSet: partialPartitionUnion.toString(),
+              },
+            ]
+          );
+
+          for (const { positionId, collectionId, indexSet } of partialSplitInfo.children) {
+            const collection = await getCollection(collectionId);
+            assert(collection, `collection ${collectionId} not found`);
+            assert.equal(collection.conditions.length, 1);
+            assert.equal(collection.conditionIds.length, 1);
+            assert.equal(collection.indexSets.length, 1);
+            assert.deepEqual(
+              collection.conditionIds.map((conditionId, i) => ({
+                conditionId,
+                indexSet: collection.indexSets[i],
+              })),
+              [
+                {
+                  conditionId: conditionsInfo[0].conditionId,
+                  indexSet: indexSet.toString(),
+                },
+              ]
+            );
+            assert.equal(await conditionalTokens.balanceOf(trader, positionId), 100);
+            const position = await getPosition(positionId);
+
+            assert.deepInclude(position, {
+              __typename: 'Position',
+              id: positionId,
+              collateralToken: collateralToken.address.toLowerCase(),
+              collection: {
+                __typename: 'Collection',
+                id: collectionId,
+              },
+              lifetimeValue: '100',
+              activeValue: '100',
+            });
+
+            assert.equal(position.conditions.length, position.conditionIds.length);
+            assert.equal(position.conditions.length, position.indexSets.length);
+            assert.deepEqual(
+              position.conditionIds.map((conditionId, i) => ({
+                conditionId,
+                indexSet: position.indexSets[i],
+              })),
+              [
+                {
+                  conditionId: conditionsInfo[0].conditionId,
+                  indexSet: indexSet.toString(),
+                },
+              ]
+            );
+          }
+        });
+      });
+
+      context('splitting C1 positions -> C1&C2 positions', function () {
         const partition2 = [0b101, 0b010];
         let splits2Info;
         beforeEach('trader splits $100:C1 positions through C2', async function () {
@@ -447,7 +582,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           }
         });
 
-        context('splitting C1:(a|b)&C2 -> C1:(a)&C2, C1(b)&C2 positions', function () {
+        context('splitting C1(a|b)&C2 -> C1(a)&C2, C1(b)&C2 positions', function () {
           const partition3 = [0b001, 0b010];
           let partition3Union;
           beforeEach('verify partition union targets previous position', function () {
@@ -456,7 +591,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           });
 
           let splits3Info;
-          beforeEach('split C1:(a|b)&C2 -> C1:(a)&C2, C1(b)&C2', async function () {
+          beforeEach('split C1(a|b)&C2 -> C1:(a)&C2, C1(b)&C2', async function () {
             const childrenInfos = [];
             const unionsInfo = [];
 
