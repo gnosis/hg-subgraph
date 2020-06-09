@@ -547,7 +547,157 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           });
         });
 
-        context('merging C1(b), C1(c) -> C1(b|c)', function () {});
+        context('merging C1(b), C1(c) -> C1(b|c)', function () {
+          const mergePartition = [0b010, 0b100];
+          const mergePartitionUnion = mergePartition.reduce((a, b) => a | b, 0);
+          let partialMergeInfo;
+          beforeEach('merge C1(b), C1(c) -> C1(b|c)', async function () {
+            await conditionalTokens.mergePositions(
+              collateralToken.address,
+              rootCollectionId,
+              conditionsInfo[0].conditionId,
+              mergePartition,
+              100,
+              { from: trader }
+            );
+
+            const unionCollectionId = getCollectionId(
+              conditionsInfo[0].conditionId,
+              mergePartitionUnion
+            );
+            const unionPositionId = getPositionId(collateralToken.address, unionCollectionId);
+            partialMergeInfo = {
+              union: {
+                collectionId: unionCollectionId,
+                positionId: unionPositionId,
+              },
+              children: mergePartition.map((indexSet) => {
+                const collectionId = getCollectionId(conditionsInfo[0].conditionId, indexSet);
+                const positionId = getPositionId(collateralToken.address, collectionId);
+                return { indexSet, collectionId, positionId };
+              }),
+            };
+          });
+
+          it('updates graph accordingly', async function () {
+            await waitForGraphSync();
+
+            const {
+              collectionId: oldCollectionId,
+              positionId: oldPositionId,
+            } = partialSplitInfo.union;
+
+            const oldPosition = await getPosition(oldPositionId);
+            assert.deepInclude(oldPosition, {
+              __typename: 'Position',
+              id: oldPositionId,
+              collateralToken: collateralToken.address.toLowerCase(),
+              collection: {
+                __typename: 'Collection',
+                id: oldCollectionId,
+              },
+              lifetimeValue: '100',
+              activeValue: '0',
+            });
+            assert.equal(oldPosition.conditions.length, 1);
+            assert.equal(oldPosition.conditionIds.length, 1);
+            assert.equal(oldPosition.indexSets.length, 1);
+            assert.deepEqual(
+              oldPosition.conditionIds.map((conditionId, i) => ({
+                conditionId,
+                indexSet: oldPosition.indexSets[i],
+              })),
+              [
+                {
+                  conditionId: conditionsInfo[0].conditionId,
+                  indexSet: partialPartitionUnion.toString(),
+                },
+              ]
+            );
+
+            const {
+              collectionId: unionCollectionId,
+              positionId: unionPositionId,
+            } = partialMergeInfo.union;
+
+            const unionPosition = await getPosition(unionPositionId);
+            assert.deepInclude(unionPosition, {
+              __typename: 'Position',
+              id: unionPositionId,
+              collateralToken: collateralToken.address.toLowerCase(),
+              collection: {
+                __typename: 'Collection',
+                id: unionCollectionId,
+              },
+              lifetimeValue: '0',
+              activeValue: '100',
+            });
+            assert.equal(unionPosition.conditions.length, 1);
+            assert.equal(unionPosition.conditionIds.length, 1);
+            assert.equal(unionPosition.indexSets.length, 1);
+            assert.deepEqual(
+              unionPosition.conditionIds.map((conditionId, i) => ({
+                conditionId,
+                indexSet: unionPosition.indexSets[i],
+              })),
+              [
+                {
+                  conditionId: conditionsInfo[0].conditionId,
+                  indexSet: partialPartitionUnion.toString(),
+                },
+              ]
+            );
+
+            for (const { positionId, collectionId, indexSet } of partialMergeInfo.children) {
+              const collection = await getCollection(collectionId);
+              assert(collection, `collection ${collectionId} not found`);
+              assert.equal(collection.conditions.length, 1);
+              assert.equal(collection.conditionIds.length, 1);
+              assert.equal(collection.indexSets.length, 1);
+              assert.deepEqual(
+                collection.conditionIds.map((conditionId, i) => ({
+                  conditionId,
+                  indexSet: collection.indexSets[i],
+                })),
+                [
+                  {
+                    conditionId: conditionsInfo[0].conditionId,
+                    indexSet: indexSet.toString(),
+                  },
+                ]
+              );
+              assert.equal(await conditionalTokens.balanceOf(trader, positionId), 0);
+              const position = await getPosition(positionId);
+
+              assert.deepInclude(position, {
+                __typename: 'Position',
+                id: positionId,
+                collateralToken: collateralToken.address.toLowerCase(),
+                collection: {
+                  __typename: 'Collection',
+                  id: collectionId,
+                },
+                lifetimeValue: '0',
+                activeValue: '0',
+              });
+
+              assert.equal(position.conditions.length, position.conditionIds.length);
+              assert.equal(position.conditions.length, position.indexSets.length);
+              assert.deepEqual(
+                position.conditionIds.map((conditionId, i) => ({
+                  conditionId,
+                  indexSet: position.indexSets[i],
+                })),
+                [
+                  {
+                    conditionId: conditionsInfo[0].conditionId,
+                    indexSet: indexSet.toString(),
+                  },
+                ]
+              );
+            }
+          });
+        });
       });
 
       context('splitting C1 positions -> C1&C2 positions', function () {
@@ -976,11 +1126,211 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             });
           });
 
-          context('merging C1(b)&C2, C1(c)&C2 -> C1(b|c)&C2 positions', function () {});
+          context('merging C1(b)&C2, C1(c)&C2 -> C1(b|c)&C2 positions', function () {
+            const partition4 = [0b010, 0b100];
+            let partition4Union;
+            let mergeInfo;
+            beforeEach('do merge', async function () {
+              partition4Union = partition4.reduce((a, b) => a | b, 0);
+
+              const unions = [];
+              const childrenInfo = [];
+              for (const otherIndexSet of partition2) {
+                const parentCollectionId = getCollectionId(
+                  conditionsInfo[1].conditionId,
+                  otherIndexSet
+                );
+
+                await conditionalTokens.mergePositions(
+                  collateralToken.address,
+                  parentCollectionId,
+                  conditionsInfo[0].conditionId,
+                  partition4,
+                  100,
+                  { from: trader }
+                );
+
+                const unionCollectionId = combineCollectionIds([
+                  parentCollectionId,
+                  getCollectionId(conditionsInfo[0].conditionId, partition4Union),
+                ]);
+                const unionPositionId = getPositionId(collateralToken.address, unionCollectionId);
+                const unionInfo = {
+                  otherIndexSet,
+                  collectionId: unionCollectionId,
+                  positionId: unionPositionId,
+                };
+                unions.push(unionInfo);
+
+                childrenInfo.push(
+                  partition4.map((indexSet) => {
+                    const collectionId = combineCollectionIds([
+                      parentCollectionId,
+                      getCollectionId(conditionsInfo[0].conditionId, indexSet),
+                    ]);
+                    const positionId = getPositionId(collateralToken.address, collectionId);
+                    return {
+                      union: unionInfo,
+                      positionId,
+                      collectionId,
+                      indexSet,
+                    };
+                  })
+                );
+              }
+
+              mergeInfo = {
+                unions,
+                children: childrenInfo.flat(),
+              };
+            });
+
+            it('updates graph accordingly', async function () {
+              await waitForGraphSync();
+
+              for (const {
+                otherIndexSet,
+                collectionId: oldCollectionId,
+                positionId: oldPositionId,
+              } of splits3Info.unions) {
+                const oldPosition = await getPosition(oldPositionId);
+                assert.deepInclude(oldPosition, {
+                  __typename: 'Position',
+                  id: oldPositionId,
+                  collateralToken: collateralToken.address.toLowerCase(),
+                  collection: {
+                    __typename: 'Collection',
+                    id: oldCollectionId,
+                  },
+                  lifetimeValue: '100',
+                  activeValue: '0',
+                });
+                assert.equal(oldPosition.conditions.length, 2);
+                assert.equal(oldPosition.conditionIds.length, 2);
+                assert.equal(oldPosition.indexSets.length, 2);
+                assert.sameDeepMembers(
+                  oldPosition.conditionIds.map((conditionId, i) => ({
+                    conditionId,
+                    indexSet: oldPosition.indexSets[i],
+                  })),
+                  [
+                    {
+                      conditionId: conditionsInfo[0].conditionId,
+                      indexSet: partition3Union.toString(),
+                    },
+                    {
+                      conditionId: conditionsInfo[1].conditionId,
+                      indexSet: otherIndexSet.toString(),
+                    },
+                  ]
+                );
+              }
+
+              for (const {
+                union: { otherIndexSet },
+                positionId,
+                collectionId,
+                indexSet,
+              } of mergeInfo.children) {
+                const collection = await getCollection(collectionId);
+                assert(collection, `collection ${collectionId} not found`);
+                assert.equal(collection.conditions.length, 2);
+                assert.equal(collection.conditionIds.length, 2);
+                assert.equal(collection.indexSets.length, 2);
+                assert.sameDeepMembers(
+                  collection.conditionIds.map((conditionId, i) => ({
+                    conditionId,
+                    indexSet: collection.indexSets[i],
+                  })),
+                  [
+                    {
+                      conditionId: conditionsInfo[0].conditionId,
+                      indexSet: indexSet.toString(),
+                    },
+                    {
+                      conditionId: conditionsInfo[1].conditionId,
+                      indexSet: otherIndexSet.toString(),
+                    },
+                  ]
+                );
+                assert.equal(await conditionalTokens.balanceOf(trader, positionId), 0);
+                const position = await getPosition(positionId);
+
+                assert.deepInclude(position, {
+                  __typename: 'Position',
+                  id: positionId,
+                  collateralToken: collateralToken.address.toLowerCase(),
+                  collection: {
+                    __typename: 'Collection',
+                    id: collectionId,
+                  },
+                  lifetimeValue: '100',
+                  activeValue: '0',
+                });
+
+                assert.equal(position.conditions.length, position.conditionIds.length);
+                assert.equal(position.conditions.length, position.indexSets.length);
+                assert.sameDeepMembers(
+                  position.conditionIds.map((conditionId, i) => ({
+                    conditionId,
+                    indexSet: position.indexSets[i],
+                  })),
+                  [
+                    {
+                      conditionId: conditionsInfo[0].conditionId,
+                      indexSet: indexSet.toString(),
+                    },
+                    {
+                      conditionId: conditionsInfo[1].conditionId,
+                      indexSet: otherIndexSet.toString(),
+                    },
+                  ]
+                );
+              }
+
+              for (const {
+                otherIndexSet,
+                collectionId: unionCollectionId,
+                positionId: unionPositionId,
+              } of mergeInfo.unions) {
+                const unionPosition = await getPosition(unionPositionId);
+                assert.deepInclude(unionPosition, {
+                  __typename: 'Position',
+                  id: unionPositionId,
+                  collateralToken: collateralToken.address.toLowerCase(),
+                  collection: {
+                    __typename: 'Collection',
+                    id: unionCollectionId,
+                  },
+                  lifetimeValue: '100',
+                  activeValue: '100',
+                });
+                assert.equal(unionPosition.conditions.length, 2);
+                assert.equal(unionPosition.conditionIds.length, 2);
+                assert.equal(unionPosition.indexSets.length, 2);
+                assert.sameDeepMembers(
+                  unionPosition.conditionIds.map((conditionId, i) => ({
+                    conditionId,
+                    indexSet: unionPosition.indexSets[i],
+                  })),
+                  [
+                    {
+                      conditionId: conditionsInfo[0].conditionId,
+                      indexSet: partition4Union.toString(),
+                    },
+                    {
+                      conditionId: conditionsInfo[1].conditionId,
+                      indexSet: otherIndexSet.toString(),
+                    },
+                  ]
+                );
+              }
+            });
+          });
         });
 
         context('merging C1&C2 -> C1 positions', function () {
-          beforeEach('trader splits $100:C1 positions through C2', async function () {
+          beforeEach('trader merges $100:C1&C2 positions through C2', async function () {
             for (const parent of split1Info) {
               const { collectionId: parentCollectionId } = parent;
               await conditionalTokens.mergePositions(
@@ -1090,7 +1440,169 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           });
         });
 
-        context('merging C1&C2 -> C2 positions', function () {});
+        context('merging C1&C2 -> C2 positions', function () {
+          let mergeInfo;
+          beforeEach('trader merges $100:C1&C2 positions through C1', async function () {
+            mergeInfo = partition2.map((indexSet) => {
+              const collectionId = getCollectionId(conditionsInfo[1].conditionId, indexSet);
+              const positionId = getPositionId(collateralToken.address, collectionId);
+              return {
+                indexSet,
+                collectionId,
+                positionId,
+              };
+            });
+            for (const parent of mergeInfo) {
+              const { collectionId: parentCollectionId } = parent;
+              await conditionalTokens.mergePositions(
+                collateralToken.address,
+                parentCollectionId,
+                conditionsInfo[0].conditionId,
+                partition1,
+                100,
+                { from: trader }
+              );
+            }
+          });
+
+          it('updates graph accordingly', async function () {
+            await waitForGraphSync();
+
+            for (const {
+              positionId: oldPositionId,
+              collectionId: oldCollectionId,
+              indexSet: oldIndexSet,
+            } of split1Info) {
+              const oldPosition = await getPosition(oldPositionId);
+
+              assert.deepEqual(oldPosition, {
+                __typename: 'Position',
+                id: oldPositionId,
+                collateralToken: collateralToken.address.toLowerCase(),
+                collection: {
+                  __typename: 'Collection',
+                  id: oldCollectionId,
+                },
+                conditions: [
+                  {
+                    __typename: 'Condition',
+                    id: conditionsInfo[0].conditionId,
+                  },
+                ],
+                conditionIds: [conditionsInfo[0].conditionId],
+                indexSets: [oldIndexSet.toString()],
+                lifetimeValue: '100',
+                activeValue: '0',
+              });
+            }
+
+            for (const {
+              parent: { indexSet: parentIndexSet },
+              positionId,
+              collectionId,
+              indexSet,
+            } of splits2Info) {
+              const collection = await getCollection(collectionId);
+              assert(collection, `collection ${collectionId} not found`);
+              assert.equal(collection.conditions.length, 2);
+              assert.equal(collection.conditionIds.length, 2);
+              assert.equal(collection.indexSets.length, 2);
+              assert.sameDeepMembers(
+                collection.conditionIds.map((conditionId, i) => ({
+                  conditionId,
+                  indexSet: collection.indexSets[i],
+                })),
+                [
+                  {
+                    conditionId: conditionsInfo[0].conditionId,
+                    indexSet: parentIndexSet.toString(),
+                  },
+                  {
+                    conditionId: conditionsInfo[1].conditionId,
+                    indexSet: indexSet.toString(),
+                  },
+                ]
+              );
+
+              assert.equal(await conditionalTokens.balanceOf(trader, positionId), 0);
+              const position = await getPosition(positionId);
+
+              assert.deepInclude(position, {
+                __typename: 'Position',
+                id: positionId,
+                collateralToken: collateralToken.address.toLowerCase(),
+                collection: {
+                  __typename: 'Collection',
+                  id: collectionId,
+                },
+                lifetimeValue: '100',
+                activeValue: '0',
+              });
+
+              assert.equal(position.conditions.length, position.conditionIds.length);
+              assert.equal(position.conditions.length, position.indexSets.length);
+              assert.sameDeepMembers(
+                position.conditionIds.map((conditionId, i) => ({
+                  conditionId,
+                  indexSet: position.indexSets[i],
+                })),
+                [
+                  {
+                    conditionId: conditionsInfo[0].conditionId,
+                    indexSet: parentIndexSet.toString(),
+                  },
+                  {
+                    conditionId: conditionsInfo[1].conditionId,
+                    indexSet: indexSet.toString(),
+                  },
+                ]
+              );
+            }
+
+            for (const {
+              positionId: parentPositionId,
+              collectionId: parentCollectionId,
+              indexSet: parentIndexSet,
+            } of mergeInfo) {
+              const parentCollection = await getCollection(parentCollectionId);
+
+              assert.deepEqual(parentCollection, {
+                __typename: 'Collection',
+                id: parentCollectionId,
+                conditions: [
+                  {
+                    __typename: 'Condition',
+                    id: conditionsInfo[1].conditionId,
+                  },
+                ],
+                conditionIds: [conditionsInfo[1].conditionId],
+                indexSets: [parentIndexSet.toString()],
+              });
+
+              const parentPosition = await getPosition(parentPositionId);
+
+              assert.deepEqual(parentPosition, {
+                __typename: 'Position',
+                id: parentPositionId,
+                collateralToken: collateralToken.address.toLowerCase(),
+                collection: {
+                  __typename: 'Collection',
+                  id: parentCollectionId,
+                },
+                conditions: [
+                  {
+                    __typename: 'Condition',
+                    id: conditionsInfo[1].conditionId,
+                  },
+                ],
+                conditionIds: [conditionsInfo[1].conditionId],
+                indexSets: [parentIndexSet.toString()],
+                lifetimeValue: '0',
+                activeValue: '100',
+              });
+            }
+          });
+        });
       });
 
       context('merging C1(a|b), C1(c) -> $', function () {
