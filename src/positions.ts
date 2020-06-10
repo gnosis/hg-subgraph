@@ -92,7 +92,7 @@ function operateOnSubtree(
         if (operation === SubtreeOperation.Split) {
           log.error("expected parent collection {} to exist", [parentCollectionId.toHex()]);
         }
-        log.error("not implemented yet", []);
+        log.error("getting parent collection info not implemented yet", []);
         parentCollection = new Collection(parentCollectionId.toHex());
         parentCollection.conditions = [];
         parentCollection.conditionIds = [];
@@ -112,8 +112,7 @@ function operateOnSubtree(
       if (operation === SubtreeOperation.Split) {
         log.error("expected union collection {} to exist", [unionCollectionId.toHex()]);
       }
-      // TODO: implement
-      log.error("not implemented yet", []);
+      log.error("getting union collection not implemented yet", []);
       unionCollection = new Collection(unionCollectionId.toHex());
       unionCollection.conditions = ["ERROR"];
       unionCollection.conditionIds = ["ERROR"];
@@ -250,8 +249,8 @@ function operateOnSubtree(
     let unionPositionId = toPositionId(collateralToken, unionCollectionId);
     let unionPosition = Position.load(unionPositionId.toHex());
     if (unionPosition == null) {
-      if (operation !== SubtreeOperation.Split) {
-        log.error("expected parent position {} to exist", [unionPositionId.toHex()]);
+      if (operation === SubtreeOperation.Split) {
+        log.error("expected union position {} to exist", [unionPositionId.toHex()]);
       }
 
       unionPosition = new Position(unionPositionId.toHex());
@@ -281,10 +280,13 @@ function operateOnSubtree(
     let userUnionPositionId = concat(user, unionPositionId);
     let userUnionPosition = UserPosition.load(userUnionPositionId.toHex());
     if (userUnionPosition == null) {
-      log.error("expected parent position {} of user {} to exist", [
-        unionPositionId.toHex(),
-        user.toHex(),
-      ]);
+      if (operation === SubtreeOperation.Split) {
+        log.error("expected union position {} of user {} to exist", [
+          unionPositionId.toHex(),
+          user.toHex(),
+        ]);
+      }
+
       userUnionPosition = new UserPosition(userUnionPositionId.toHex());
       userUnionPosition.user = userEntity.id;
       userUnionPosition.position = unionPosition.id;
