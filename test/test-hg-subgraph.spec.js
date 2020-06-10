@@ -620,6 +620,24 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               positionId: unionPositionId,
             } = partialMergeInfo.union;
 
+            const unionCollection = await getCollection(unionCollectionId);
+            assert(unionCollection, `union collection ${unionCollectionId} not found`);
+            assert.equal(unionCollection.conditions.length, 1);
+            assert.equal(unionCollection.conditionIds.length, 1);
+            assert.equal(unionCollection.indexSets.length, 1);
+            assert.deepEqual(
+              unionCollection.conditionIds.map((conditionId, i) => ({
+                conditionId,
+                indexSet: unionCollection.indexSets[i],
+              })),
+              [
+                {
+                  conditionId: conditionsInfo[0].conditionId,
+                  indexSet: mergePartitionUnion.toString(),
+                },
+              ]
+            );
+
             const unionPosition = await getPosition(unionPositionId);
             assert.deepInclude(unionPosition, {
               __typename: 'Position',
@@ -643,7 +661,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               [
                 {
                   conditionId: conditionsInfo[0].conditionId,
-                  indexSet: partialPartitionUnion.toString(),
+                  indexSet: mergePartitionUnion.toString(),
                 },
               ]
             );
@@ -677,7 +695,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Collection',
                   id: collectionId,
                 },
-                lifetimeValue: '0',
+                lifetimeValue: '100',
                 activeValue: '0',
               });
 
@@ -1302,7 +1320,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                     __typename: 'Collection',
                     id: unionCollectionId,
                   },
-                  lifetimeValue: '100',
+                  lifetimeValue: '0',
                   activeValue: '100',
                 });
                 assert.equal(unionPosition.conditions.length, 2);

@@ -77,6 +77,10 @@ function operateOnSubtree(
 
   let parentConditions: string[];
   let parentIndexSets: BigInt[];
+
+  let jointCollectionId: Bytes;
+  let jointConditions: string[];
+  let jointIndexSets: BigInt[];
   
   let unionIndexSet = sum(indexSets);
   let changesDepth = operation === SubtreeOperation.Redeem || isFullIndexSet(unionIndexSet, condition.outcomeSlotCount);
@@ -92,15 +96,47 @@ function operateOnSubtree(
         if (operation === SubtreeOperation.Split) {
           log.error("expected parent collection {} to exist", [parentCollectionId.toHex()]);
         }
-        log.error("getting parent collection info not implemented yet", []);
+
+        let indexSet = indexSets[0];
+        let childCollectionId = conditionalTokens.getCollectionId(
+          parentCollectionId,
+          conditionId,
+          indexSet,
+        );
+        let childCollection = Collection.load(childCollectionId.toHex());
+        let childConditions = childCollection.conditions;
+        let childIndexSets = childCollection.indexSets;
+        let numConditions = childConditions.length - 1;
+        let parentCollectionConditions = new Array<string>(numConditions);
+        let parentCollectionIndexSets = new Array<BigInt>(numConditions);
+
+        for (let i = 0, j = 0; i <= numConditions; i++) {
+          let childConditionId = childConditions[i];
+          let childIndexSet = childIndexSets[i];
+          if (
+            childConditionId != conditionIdHex ||
+            childIndexSet.notEqual(indexSet)
+          ) {
+            parentCollectionConditions[j] = childConditionId;
+            parentCollectionIndexSets[j] = childIndexSet;
+            j++;
+          }
+        }
+
         parentCollection = new Collection(parentCollectionId.toHex());
-        parentCollection.conditions = [];
-        parentCollection.conditionIds = [];
-        parentCollection.indexSets = [];
+        parentCollection.conditions = parentCollectionConditions;
+        parentCollection.conditionIds = parentCollectionConditions;
+        parentCollection.indexSets = parentCollectionIndexSets;
+
+        parentCollection.save();
       }
       parentConditions = parentCollection.conditions;
       parentIndexSets = parentCollection.indexSets;
     }
+
+    jointCollectionId = parentCollectionId;
+    jointConditions = parentConditions;
+    jointIndexSets = parentIndexSets;
   } else {
     let unionCollectionId = conditionalTokens.getCollectionId(
       parentCollectionId,
@@ -112,11 +148,43 @@ function operateOnSubtree(
       if (operation === SubtreeOperation.Split) {
         log.error("expected union collection {} to exist", [unionCollectionId.toHex()]);
       }
-      log.error("getting union collection not implemented yet", []);
+
+      let indexSet = indexSets[0];
+      let childCollectionId = conditionalTokens.getCollectionId(
+        parentCollectionId,
+        conditionId,
+        indexSet,
+      );
+      let childCollection = Collection.load(childCollectionId.toHex());
+      let childConditions = childCollection.conditions;
+      let childIndexSets = childCollection.indexSets;
+      let numConditions = childConditions.length;
+      let unionCollectionConditions = new Array<string>(numConditions);
+      let unionCollectionIndexSets = new Array<BigInt>(numConditions);
+
+      let replaced = false;
+      for (let i = 0; i < numConditions; i++) {
+        let childConditionId = childConditions[i];
+        let childIndexSet = childIndexSets[i];
+        unionCollectionConditions[i] = childConditionId;
+        if (
+          !replaced &&
+          childConditionId == conditionIdHex &&
+          childIndexSet.equals(indexSet)
+        ) {
+          unionCollectionIndexSets[i] = unionIndexSet;
+          replaced = true;
+        } else {
+          unionCollectionIndexSets[i] = childIndexSet;
+        }
+      }
+
       unionCollection = new Collection(unionCollectionId.toHex());
-      unionCollection.conditions = ["ERROR"];
-      unionCollection.conditionIds = ["ERROR"];
-      unionCollection.indexSets = [BigInt.fromI32(-1)];
+      unionCollection.conditions = unionCollectionConditions;
+      unionCollection.conditionIds = unionCollectionConditions;
+      unionCollection.indexSets = unionCollectionIndexSets;
+
+      unionCollection.save();
     }
     let parentCollectionConditions = unionCollection.conditions;
     let parentCollectionIndexSets = unionCollection.indexSets;
@@ -130,6 +198,10 @@ function operateOnSubtree(
         j++;
       }
     }
+
+    jointCollectionId = unionCollectionId;
+    jointConditions = unionCollection.conditions;
+    jointIndexSets = unionCollection.indexSets;
   }
 
   for (let i = 0; i < indexSets.length; i++) {
@@ -239,72 +311,65 @@ function operateOnSubtree(
 
     collateral.save();
   } else {
-    let unionCollectionId = changesDepth ? parentCollectionId :
-      conditionalTokens.getCollectionId(
-        parentCollectionId,
-        conditionId,
-        unionIndexSet,
-      );
-
-    let unionPositionId = toPositionId(collateralToken, unionCollectionId);
-    let unionPosition = Position.load(unionPositionId.toHex());
-    if (unionPosition == null) {
+    let jointPositionId = toPositionId(collateralToken, jointCollectionId);
+    let jointPosition = Position.load(jointPositionId.toHex());
+    if (jointPosition == null) {
       if (operation === SubtreeOperation.Split) {
-        log.error("expected union position {} to exist", [unionPositionId.toHex()]);
+        log.error("expected joint position {} to exist", [jointPositionId.toHex()]);
       }
 
-      unionPosition = new Position(unionPositionId.toHex());
-      unionPosition.collateralToken = collateralToken;
-      unionPosition.collection = parentCollectionId.toHex();
-      unionPosition.conditions = parentConditions;
-      unionPosition.conditionIds = parentConditions;
-      unionPosition.indexSets = parentIndexSets;
-      unionPosition.lifetimeValue = zeroAsBigInt;
-      unionPosition.activeValue = zeroAsBigInt;
+      jointPosition = new Position(jointPositionId.toHex());
+      jointPosition.collateralToken = collateralToken;
+      jointPosition.collection = jointCollectionId.toHex();
+      jointPosition.conditions = jointConditions;
+      jointPosition.conditionIds = jointConditions;
+      jointPosition.indexSets = jointIndexSets;
+      jointPosition.lifetimeValue = zeroAsBigInt;
+      jointPosition.activeValue = zeroAsBigInt;
     }
 
     switch (operation) {
       case SubtreeOperation.Split:
-        unionPosition.activeValue = unionPosition.activeValue.minus(amount);
+        jointPosition.activeValue = jointPosition.activeValue.minus(amount);
         break;
       case SubtreeOperation.Merge:
-        unionPosition.activeValue = unionPosition.activeValue.plus(amount);
+        jointPosition.activeValue = jointPosition.activeValue.plus(amount);
         break;
       case SubtreeOperation.Redeem:
-        unionPosition.activeValue = unionPosition.activeValue.plus(amount);
+        jointPosition.activeValue = jointPosition.activeValue.plus(amount);
         break;
     }
 
-    unionPosition.save();
+    jointPosition.save();
   
-    let userUnionPositionId = concat(user, unionPositionId);
-    let userUnionPosition = UserPosition.load(userUnionPositionId.toHex());
-    if (userUnionPosition == null) {
+    let userJointPositionId = concat(user, jointPositionId);
+    let userJointPosition = UserPosition.load(userJointPositionId.toHex());
+    if (userJointPosition == null) {
       if (operation === SubtreeOperation.Split) {
-        log.error("expected union position {} of user {} to exist", [
-          unionPositionId.toHex(),
+        log.error("expected joint position {} of user {} to exist", [
+          jointPositionId.toHex(),
           user.toHex(),
         ]);
       }
 
-      userUnionPosition = new UserPosition(userUnionPositionId.toHex());
-      userUnionPosition.user = userEntity.id;
-      userUnionPosition.position = unionPosition.id;
-      userUnionPosition.balance = zeroAsBigInt;
+      userJointPosition = new UserPosition(userJointPositionId.toHex());
+      userJointPosition.user = userEntity.id;
+      userJointPosition.position = jointPosition.id;
+      userJointPosition.balance = zeroAsBigInt;
     }
 
     switch (operation) {
       case SubtreeOperation.Split:
-        userUnionPosition.balance = userUnionPosition.balance.minus(amount);
+        userJointPosition.balance = userJointPosition.balance.minus(amount);
         break;
       case SubtreeOperation.Merge:
-        userUnionPosition.balance = userUnionPosition.balance.plus(amount);
+        userJointPosition.balance = userJointPosition.balance.plus(amount);
         break;
       case SubtreeOperation.Redeem:
-        userUnionPosition.balance = userUnionPosition.balance.plus(amount);
+        userJointPosition.balance = userJointPosition.balance.plus(amount);
         break;
     }
-    userUnionPosition.save();
+    userJointPosition.save();
   }
 }
 
