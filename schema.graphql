@@ -34,7 +34,7 @@ type Collection @entity {
 
 type Position @entity {
   id: ID!
-  collateralToken: Bytes!
+  collateralToken: Collateral!
   collection: Collection!
   # see note above about conditions/conditionIds duplication
   conditions: [Condition!]!
@@ -61,7 +61,9 @@ type User @entity {
 
 type Collateral @entity {
   id: ID!
-  splitCollateral: BigInt!
-  redeemedCollateral: BigInt!
+  activeAmount: BigInt!
+  splitAmount: BigInt!
+  mergedAmount: BigInt!
+  redeemedAmount: BigInt!
 }
 

@@ -76,7 +76,9 @@ async function getPosition(positionId) {
         query($positionId: ID) {
           position(id: $positionId) {
             id
-            collateralToken
+            collateralToken {
+              id
+            }
             collection {
               id
             }
@@ -295,7 +297,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           assert.deepEqual(position, {
             __typename: 'Position',
             id: positionId,
-            collateralToken: collateralToken.address.toLowerCase(),
+            collateralToken: {
+              __typename: 'Collateral',
+              id: collateralToken.address.toLowerCase(),
+            },
             collection: {
               __typename: 'Collection',
               id: collectionId,
@@ -374,7 +379,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           assert.deepInclude(unionPosition, {
             __typename: 'Position',
             id: unionPositionId,
-            collateralToken: collateralToken.address.toLowerCase(),
+            collateralToken: {
+              __typename: 'Collateral',
+              id: collateralToken.address.toLowerCase(),
+            },
             collection: {
               __typename: 'Collection',
               id: unionCollectionId,
@@ -422,7 +430,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             assert.deepInclude(position, {
               __typename: 'Position',
               id: positionId,
-              collateralToken: collateralToken.address.toLowerCase(),
+              collateralToken: {
+                __typename: 'Collateral',
+                id: collateralToken.address.toLowerCase(),
+              },
               collection: {
                 __typename: 'Collection',
                 id: collectionId,
@@ -472,7 +483,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             assert.deepInclude(unionPosition, {
               __typename: 'Position',
               id: unionPositionId,
-              collateralToken: collateralToken.address.toLowerCase(),
+              collateralToken: {
+                __typename: 'Collateral',
+                id: collateralToken.address.toLowerCase(),
+              },
               collection: {
                 __typename: 'Collection',
                 id: unionCollectionId,
@@ -520,7 +534,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepInclude(position, {
                 __typename: 'Position',
                 id: positionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: collectionId,
@@ -591,7 +608,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             assert.deepInclude(oldPosition, {
               __typename: 'Position',
               id: oldPositionId,
-              collateralToken: collateralToken.address.toLowerCase(),
+              collateralToken: {
+                __typename: 'Collateral',
+                id: collateralToken.address.toLowerCase(),
+              },
               collection: {
                 __typename: 'Collection',
                 id: oldCollectionId,
@@ -642,12 +662,15 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             assert.deepInclude(unionPosition, {
               __typename: 'Position',
               id: unionPositionId,
-              collateralToken: collateralToken.address.toLowerCase(),
+              collateralToken: {
+                __typename: 'Collateral',
+                id: collateralToken.address.toLowerCase(),
+              },
               collection: {
                 __typename: 'Collection',
                 id: unionCollectionId,
               },
-              lifetimeValue: '0',
+              lifetimeValue: '100',
               activeValue: '100',
             });
             assert.equal(unionPosition.conditions.length, 1);
@@ -690,7 +713,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepInclude(position, {
                 __typename: 'Position',
                 id: positionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: collectionId,
@@ -769,7 +795,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             assert.deepEqual(parentPosition, {
               __typename: 'Position',
               id: parentPositionId,
-              collateralToken: collateralToken.address.toLowerCase(),
+              collateralToken: {
+                __typename: 'Collateral',
+                id: collateralToken.address.toLowerCase(),
+              },
               collection: {
                 __typename: 'Collection',
                 id: parentCollectionId,
@@ -821,7 +850,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             assert.deepInclude(position, {
               __typename: 'Position',
               id: positionId,
-              collateralToken: collateralToken.address.toLowerCase(),
+              collateralToken: {
+                __typename: 'Collateral',
+                id: collateralToken.address.toLowerCase(),
+              },
               collection: {
                 __typename: 'Collection',
                 id: collectionId,
@@ -928,7 +960,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepInclude(unionPosition, {
                 __typename: 'Position',
                 id: unionPositionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: unionCollectionId,
@@ -990,7 +1025,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepInclude(position, {
                 __typename: 'Position',
                 id: positionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: collectionId,
@@ -1051,7 +1089,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 assert.deepInclude(unionPosition, {
                   __typename: 'Position',
                   id: unionPositionId,
-                  collateralToken: collateralToken.address.toLowerCase(),
+                  collateralToken: {
+                    __typename: 'Collateral',
+                    id: collateralToken.address.toLowerCase(),
+                  },
                   collection: {
                     __typename: 'Collection',
                     id: unionCollectionId,
@@ -1113,7 +1154,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 assert.deepInclude(position, {
                   __typename: 'Position',
                   id: positionId,
-                  collateralToken: collateralToken.address.toLowerCase(),
+                  collateralToken: {
+                    __typename: 'Collateral',
+                    id: collateralToken.address.toLowerCase(),
+                  },
                   collection: {
                     __typename: 'Collection',
                     id: collectionId,
@@ -1215,7 +1259,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 assert.deepInclude(oldPosition, {
                   __typename: 'Position',
                   id: oldPositionId,
-                  collateralToken: collateralToken.address.toLowerCase(),
+                  collateralToken: {
+                    __typename: 'Collateral',
+                    id: collateralToken.address.toLowerCase(),
+                  },
                   collection: {
                     __typename: 'Collection',
                     id: oldCollectionId,
@@ -1277,7 +1324,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 assert.deepInclude(position, {
                   __typename: 'Position',
                   id: positionId,
-                  collateralToken: collateralToken.address.toLowerCase(),
+                  collateralToken: {
+                    __typename: 'Collateral',
+                    id: collateralToken.address.toLowerCase(),
+                  },
                   collection: {
                     __typename: 'Collection',
                     id: collectionId,
@@ -1315,12 +1365,15 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 assert.deepInclude(unionPosition, {
                   __typename: 'Position',
                   id: unionPositionId,
-                  collateralToken: collateralToken.address.toLowerCase(),
+                  collateralToken: {
+                    __typename: 'Collateral',
+                    id: collateralToken.address.toLowerCase(),
+                  },
                   collection: {
                     __typename: 'Collection',
                     id: unionCollectionId,
                   },
-                  lifetimeValue: '0',
+                  lifetimeValue: '100',
                   activeValue: '100',
                 });
                 assert.equal(unionPosition.conditions.length, 2);
@@ -1375,7 +1428,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepEqual(parentPosition, {
                 __typename: 'Position',
                 id: parentPositionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: parentCollectionId,
@@ -1427,7 +1483,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepInclude(position, {
                 __typename: 'Position',
                 id: positionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: collectionId,
@@ -1496,7 +1555,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepEqual(oldPosition, {
                 __typename: 'Position',
                 id: oldPositionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: oldCollectionId,
@@ -1548,7 +1610,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepInclude(position, {
                 __typename: 'Position',
                 id: positionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: collectionId,
@@ -1602,7 +1667,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               assert.deepEqual(parentPosition, {
                 __typename: 'Position',
                 id: parentPositionId,
-                collateralToken: collateralToken.address.toLowerCase(),
+                collateralToken: {
+                  __typename: 'Collateral',
+                  id: collateralToken.address.toLowerCase(),
+                },
                 collection: {
                   __typename: 'Collection',
                   id: parentCollectionId,
@@ -1615,7 +1683,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 ],
                 conditionIds: [conditionsInfo[1].conditionId],
                 indexSets: [parentIndexSet.toString()],
-                lifetimeValue: '0',
+                lifetimeValue: '100',
                 activeValue: '100',
               });
             }
@@ -1645,7 +1713,10 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             assert.deepEqual(position, {
               __typename: 'Position',
               id: positionId,
-              collateralToken: collateralToken.address.toLowerCase(),
+              collateralToken: {
+                __typename: 'Collateral',
+                id: collateralToken.address.toLowerCase(),
+              },
               collection: {
                 __typename: 'Collection',
                 id: collectionId,

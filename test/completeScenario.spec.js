@@ -31,8 +31,10 @@ const collateralQuery = gql`
   query($collateralId: ID) {
     collateral(id: $collateralId) {
       id
-      splitCollateral
-      redeemedCollateral
+      activeAmount
+      splitAmount
+      mergedAmount
+      redeemedAmount
     }
   }
 `;
@@ -57,7 +59,9 @@ const positionAndUserPositionQuery = gql`
   query($positionId: ID, $userPositionId: ID) {
     position(id: $positionId) {
       id
-      collateralToken
+      collateralToken {
+        id
+      }
       collection {
         id
       }
@@ -189,8 +193,10 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(collateral.splitCollateral, 50);
-    assert.equal(collateral.redeemedCollateral, 0);
+    assert.equal(collateral.activeAmount, 50);
+    assert.equal(collateral.splitAmount, 50);
+    assert.equal(collateral.mergedAmount, 0);
+    assert.equal(collateral.redeemedAmount, 0);
   });
 
   step('check graph T1 C1 positions data', async () => {
@@ -210,7 +216,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.include(partition, parseInt(position.indexSets[0]));
       assert.lengthOf(position.indexSets, 1);
       assert.lengthOf(position.conditions, 1);
-      assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
+      assert.equal(position.collateralToken.id, collateralToken.address.toLowerCase());
 
       assert.equal(userPosition.balance, 50);
       assert.equal(userPosition.position.id, positionId);
@@ -339,7 +345,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         })
       ).data;
 
-      assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
+      assert.equal(position.collateralToken.id, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 2);
       const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
@@ -411,7 +417,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         })
       ).data;
 
-      assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
+      assert.equal(position.collateralToken.id, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 1);
       const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
@@ -470,7 +476,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         })
       ).data;
 
-      assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
+      assert.equal(position.collateralToken.id, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 1);
       const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
@@ -515,7 +521,7 @@ describe('Complete scenario tests for accurate mappings', function () {
           variables: { positionId, userPositionId },
         })
       ).data;
-      assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
+      assert.equal(position.collateralToken.id, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 2);
       const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
@@ -704,7 +710,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       assert.equal(userPosition.position.id.toLowerCase(), positionId);
       assert.equal(userPosition.user.id, trader2.toLowerCase());
 
-      assert.equal(position.collateralToken, collateralToken.address.toLowerCase());
+      assert.equal(position.collateralToken.id, collateralToken.address.toLowerCase());
       assert.lengthOf(position.conditions, 2);
       const positionConditionIds = position.conditions.map((condition) => {
         return condition.id;
@@ -800,7 +806,9 @@ describe('Complete scenario tests for accurate mappings', function () {
         },
       })
     ).data;
-    assert.equal(collateral.splitCollateral, 50);
-    assert.equal(collateral.redeemedCollateral, 25);
+    assert.equal(collateral.activeAmount, 25);
+    assert.equal(collateral.splitAmount, 50);
+    assert.equal(collateral.mergedAmount, 10);
+    assert.equal(collateral.redeemedAmount, 15);
   });
 });

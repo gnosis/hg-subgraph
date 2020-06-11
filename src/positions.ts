@@ -241,7 +241,7 @@ function operateOnSubtree(
       }
 
       position = new Position(positionId.toHex());
-      position.collateralToken = collateralToken;
+      position.collateralToken = collateralToken.toHex();
       position.collection = collection.id;
 
       let conditions = collection.conditions;
@@ -268,7 +268,6 @@ function operateOnSubtree(
     switch (operation) {
       case SubtreeOperation.Split:
         position.activeValue = position.activeValue.plus(amount);
-        position.lifetimeValue = position.lifetimeValue.plus(amount);
         userPosition.balance = userPosition.balance.plus(amount);
         break;
       case SubtreeOperation.Merge:
@@ -279,6 +278,10 @@ function operateOnSubtree(
         position.activeValue = position.activeValue.minus(userPosition.balance);
         userPosition.balance = zeroAsBigInt;
         break;
+    }
+
+    if (position.activeValue.gt(position.lifetimeValue)) {
+      position.lifetimeValue = position.activeValue;
     }
 
     position.save();
@@ -293,19 +296,23 @@ function operateOnSubtree(
       }
   
       collateral = new Collateral(collateralToken.toHex());
-      collateral.splitCollateral = zeroAsBigInt;
-      collateral.redeemedCollateral = zeroAsBigInt;
+      collateral.activeAmount = zeroAsBigInt;
+      collateral.splitAmount = zeroAsBigInt;
+      collateral.mergedAmount = zeroAsBigInt;
+      collateral.redeemedAmount = zeroAsBigInt;
     }
-    // TODO: fix redeemedCollateral
     switch (operation) {
       case SubtreeOperation.Split:
-        collateral.splitCollateral = collateral.splitCollateral.plus(amount);
+        collateral.activeAmount = collateral.activeAmount.plus(amount);
+        collateral.splitAmount = collateral.splitAmount.plus(amount);
         break;
       case SubtreeOperation.Merge:
-        collateral.redeemedCollateral = collateral.redeemedCollateral.plus(amount);
+        collateral.activeAmount = collateral.activeAmount.minus(amount);
+        collateral.mergedAmount = collateral.mergedAmount.plus(amount);
         break;
       case SubtreeOperation.Redeem:
-        collateral.redeemedCollateral = collateral.redeemedCollateral.plus(amount);
+        collateral.activeAmount = collateral.activeAmount.minus(amount);
+        collateral.redeemedAmount = collateral.redeemedAmount.plus(amount);
         break;
     }
 
@@ -319,7 +326,7 @@ function operateOnSubtree(
       }
 
       jointPosition = new Position(jointPositionId.toHex());
-      jointPosition.collateralToken = collateralToken;
+      jointPosition.collateralToken = collateralToken.toHex();
       jointPosition.collection = jointCollectionId.toHex();
       jointPosition.conditions = jointConditions;
       jointPosition.conditionIds = jointConditions;
@@ -338,6 +345,10 @@ function operateOnSubtree(
       case SubtreeOperation.Redeem:
         jointPosition.activeValue = jointPosition.activeValue.plus(amount);
         break;
+    }
+
+    if (jointPosition.activeValue.gt(jointPosition.lifetimeValue)) {
+      jointPosition.lifetimeValue = jointPosition.activeValue;
     }
 
     jointPosition.save();
