@@ -45,6 +45,91 @@ enum SubtreeOperation {
   Redeem,
 }
 
+class CollectionInfo {
+  conditions: string[];
+  indexSets: BigInt[];
+  multiplicities: i32[];
+
+  constructor(conditions: string[], indexSets: BigInt[], multiplicities: i32[]) {
+    this.conditions = conditions;
+    this.indexSets = indexSets;
+    this.multiplicities = multiplicities;
+  }
+
+  mod(
+    modConditionId: string,
+    modIndexSet: BigInt,
+    modDirection: i32,
+  ): CollectionInfo {
+    let conditions = this.conditions;
+    let indexSets = this.indexSets;
+    let multiplicities = this.multiplicities;
+
+    let collectionIndex = -1;
+    for (let i = 0; i < conditions.length; i++) {
+      if (
+        conditions[i] == modConditionId &&
+        indexSets[i].equals(modIndexSet)
+      ) {
+        collectionIndex = i;
+        break;
+      }
+    }
+
+    let moddedConditions: string[];
+    let moddedIndexSets: BigInt[];
+    let moddedMultiplicities: i32[];
+
+    if (collectionIndex < 0) {
+      let numEntries = conditions.length + 1;
+      moddedConditions = new Array<string>(numEntries);
+      moddedIndexSets = new Array<BigInt>(numEntries);
+      moddedMultiplicities = new Array<i32>(numEntries);
+
+      moddedConditions[0] = modConditionId;
+      moddedIndexSets[0] = modIndexSet;
+      moddedMultiplicities[0] = modDirection;
+      for (let i = 1; i < numEntries; i++) {
+        moddedConditions[i] = conditions[i - 1];
+        moddedIndexSets[i] = indexSets[i - 1];
+        moddedMultiplicities[i] = multiplicities[i - 1];
+      }
+    } else {
+      let multiplicity = multiplicities[collectionIndex];
+      if (multiplicity + modDirection == 0) {
+        let numEntries = conditions.length - 1;
+        moddedConditions = new Array<string>(numEntries);
+        moddedIndexSets = new Array<BigInt>(numEntries);
+        moddedMultiplicities = new Array<i32>(numEntries);
+        for(let i = 0; i < collectionIndex; i++) {
+          moddedConditions[i] = conditions[i];
+          moddedIndexSets[i] = indexSets[i];
+          moddedMultiplicities[i] = multiplicities[i];
+        }
+        for(let i = collectionIndex; i < numEntries; i++) {
+          moddedConditions[i] = conditions[i + 1];
+          moddedIndexSets[i] = indexSets[i + 1];
+          moddedMultiplicities[i] = multiplicities[i + 1];
+        }
+      } else {
+        let numEntries = conditions.length;
+        moddedConditions = conditions;
+        moddedIndexSets = indexSets;
+        moddedMultiplicities = new Array<i32>(numEntries);
+        for (let i = 0; i < numEntries; i++) {
+          if (i == collectionIndex) {
+            moddedMultiplicities[i] = multiplicity + modDirection;
+          } else {
+            moddedMultiplicities[i] = multiplicity;
+          }
+        }
+      }
+    }
+
+    return new CollectionInfo(moddedConditions, moddedIndexSets, moddedMultiplicities);
+  }
+}
+
 function operateOnSubtree(
   operation: SubtreeOperation,
   blockTimestamp: BigInt,
@@ -75,12 +160,10 @@ function operateOnSubtree(
   userEntity.lastActive = blockTimestamp;
   userEntity.save();
 
-  let parentConditions: string[];
-  let parentIndexSets: BigInt[];
+  let parentCollectionInfo: CollectionInfo;
 
   let jointCollectionId: Bytes;
-  let jointConditions: string[];
-  let jointIndexSets: BigInt[];
+  let jointCollectionInfo: CollectionInfo;
   
   let unionIndexSet = sum(indexSets);
   let changesDepth = operation === SubtreeOperation.Redeem || isFullIndexSet(unionIndexSet, condition.outcomeSlotCount);
@@ -88,8 +171,7 @@ function operateOnSubtree(
   
   if (changesDepth) {
     if (rootBranch) {
-      parentConditions = [];
-      parentIndexSets = [];
+      parentCollectionInfo = new CollectionInfo([], [], []);
     } else {
       let parentCollection = Collection.load(parentCollectionId.toHex());
       if (parentCollection == null) {
@@ -104,49 +186,43 @@ function operateOnSubtree(
           indexSet,
         );
         let childCollection = Collection.load(childCollectionId.toHex());
-        let childConditions = childCollection.conditions;
-        let childIndexSets = childCollection.indexSets;
-        let numConditions = childConditions.length - 1;
-        let parentCollectionConditions = new Array<string>(numConditions);
-        let parentCollectionIndexSets = new Array<BigInt>(numConditions);
-
-        for (let i = 0, j = 0; i <= numConditions; i++) {
-          let childConditionId = childConditions[i];
-          let childIndexSet = childIndexSets[i];
-          if (
-            childConditionId != conditionIdHex ||
-            childIndexSet.notEqual(indexSet)
-          ) {
-            parentCollectionConditions[j] = childConditionId;
-            parentCollectionIndexSets[j] = childIndexSet;
-            j++;
-          }
-        }
+        let childCollectionInfo = new CollectionInfo(
+          childCollection.conditions,
+          childCollection.indexSets,
+          childCollection.multiplicities,
+        );
+        parentCollectionInfo = childCollectionInfo.mod(
+          conditionIdHex, indexSet, -1,
+        );
 
         parentCollection = new Collection(parentCollectionId.toHex());
-        parentCollection.conditions = parentCollectionConditions;
-        parentCollection.conditionIds = parentCollectionConditions;
-        parentCollection.indexSets = parentCollectionIndexSets;
+        parentCollection.conditions = parentCollectionInfo.conditions;
+        parentCollection.conditionIds = parentCollectionInfo.conditions;
+        parentCollection.indexSets = parentCollectionInfo.indexSets;
+        parentCollection.multiplicities = parentCollectionInfo.multiplicities;
 
         parentCollection.save();
+      } else {
+        parentCollectionInfo = new CollectionInfo(
+          parentCollection.conditions,
+          parentCollection.indexSets,
+          parentCollection.multiplicities,
+        );
       }
-      parentConditions = parentCollection.conditions;
-      parentIndexSets = parentCollection.indexSets;
     }
 
     jointCollectionId = parentCollectionId;
-    jointConditions = parentConditions;
-    jointIndexSets = parentIndexSets;
+    jointCollectionInfo = parentCollectionInfo;
   } else {
-    let unionCollectionId = conditionalTokens.getCollectionId(
+    jointCollectionId = conditionalTokens.getCollectionId(
       parentCollectionId,
       conditionId,
       unionIndexSet
     );
-    let unionCollection = Collection.load(unionCollectionId.toHex());
+    let unionCollection = Collection.load(jointCollectionId.toHex());
     if (unionCollection == null) {
       if (operation === SubtreeOperation.Split) {
-        log.error("expected union collection {} to exist", [unionCollectionId.toHex()]);
+        log.error("expected union collection {} to exist", [jointCollectionId.toHex()]);
       }
 
       let indexSet = indexSets[0];
@@ -156,52 +232,41 @@ function operateOnSubtree(
         indexSet,
       );
       let childCollection = Collection.load(childCollectionId.toHex());
-      let childConditions = childCollection.conditions;
-      let childIndexSets = childCollection.indexSets;
-      let numConditions = childConditions.length;
-      let unionCollectionConditions = new Array<string>(numConditions);
-      let unionCollectionIndexSets = new Array<BigInt>(numConditions);
+      let childCollectionInfo = new CollectionInfo(
+        childCollection.conditions,
+        childCollection.indexSets,
+        childCollection.multiplicities,
+      );
+      jointCollectionInfo = childCollectionInfo.mod(
+        conditionIdHex,
+        indexSet,
+        -1,
+      ).mod(
+        conditionIdHex,
+        unionIndexSet,
+        1,
+      );
 
-      let replaced = false;
-      for (let i = 0; i < numConditions; i++) {
-        let childConditionId = childConditions[i];
-        let childIndexSet = childIndexSets[i];
-        unionCollectionConditions[i] = childConditionId;
-        if (
-          !replaced &&
-          childConditionId == conditionIdHex &&
-          childIndexSet.equals(indexSet)
-        ) {
-          unionCollectionIndexSets[i] = unionIndexSet;
-          replaced = true;
-        } else {
-          unionCollectionIndexSets[i] = childIndexSet;
-        }
-      }
-
-      unionCollection = new Collection(unionCollectionId.toHex());
-      unionCollection.conditions = unionCollectionConditions;
-      unionCollection.conditionIds = unionCollectionConditions;
-      unionCollection.indexSets = unionCollectionIndexSets;
+      unionCollection = new Collection(jointCollectionId.toHex());
+      unionCollection.conditions = jointCollectionInfo.conditions;
+      unionCollection.conditionIds = jointCollectionInfo.conditions;
+      unionCollection.indexSets = jointCollectionInfo.indexSets;
+      unionCollection.multiplicities = jointCollectionInfo.multiplicities;
 
       unionCollection.save();
-    }
-    let parentCollectionConditions = unionCollection.conditions;
-    let parentCollectionIndexSets = unionCollection.indexSets;
-    parentConditions = new Array<string>(unionCollection.conditions.length - 1);
-    parentIndexSets = new Array<BigInt>(unionCollection.indexSets.length - 1);
-
-    for (let i = 0, j = 0; i < unionCollection.conditions.length; i++) {
-      if (parentCollectionConditions[i] != conditionIdHex) {
-        parentConditions[j] = parentCollectionConditions[i];
-        parentIndexSets[j] = parentCollectionIndexSets[i];
-        j++;
-      }
+    } else {
+      jointCollectionInfo = new CollectionInfo(
+        unionCollection.conditions,
+        unionCollection.indexSets,
+        unionCollection.multiplicities,
+      )
     }
 
-    jointCollectionId = unionCollectionId;
-    jointConditions = unionCollection.conditions;
-    jointIndexSets = unionCollection.indexSets;
+    parentCollectionInfo = jointCollectionInfo.mod(
+      conditionIdHex,
+      unionIndexSet,
+      -1,
+    );
   }
 
   for (let i = 0; i < indexSets.length; i++) {
@@ -216,24 +281,21 @@ function operateOnSubtree(
       if (operation === SubtreeOperation.Merge) {
         log.error("expected child collection {} to exist", [collectionId.toHex()]);
       }
+      let collectionInfo = parentCollectionInfo.mod(
+        conditionIdHex,
+        indexSet,
+        1,
+      );
       collection = new Collection(collectionId.toHex());
-      let conditions = new Array<string>(parentConditions.length + 1);
-      let indexSets = new Array<BigInt>(parentIndexSets.length + 1);
-      for (let j = 0; j < parentConditions.length; j++) {
-        conditions[j] = parentConditions[j];
-        indexSets[j] = parentIndexSets[j];
-      }
-      conditions[parentConditions.length] = conditionIdHex;
-      indexSets[parentIndexSets.length] = indexSet;
-      collection.conditions = conditions;
-      collection.conditionIds = conditions;
-      collection.indexSets = indexSets;
+      collection.conditions = collectionInfo.conditions;
+      collection.conditionIds = collectionInfo.conditions;
+      collection.indexSets = collectionInfo.indexSets;
+      collection.multiplicities = collectionInfo.multiplicities;
       collection.save();
     }
 
     let positionId = toPositionId(collateralToken, collectionId);
 
-    // Position Section
     let position = Position.load(positionId.toHex());
     if (position == null) {
       if (operation !== SubtreeOperation.Split) {
@@ -244,17 +306,15 @@ function operateOnSubtree(
       position.collateralToken = collateralToken.toHex();
       position.collection = collection.id;
 
-      let conditions = collection.conditions;
-      let indexSets = collection.indexSets;
-      position.conditions = conditions;
-      position.conditionIds = conditions;
-      position.indexSets = indexSets;
+      position.conditions = collection.conditions;
+      position.conditionIds = collection.conditions;
+      position.indexSets = collection.indexSets;
+      position.multiplicities = collection.multiplicities;
 
       position.activeValue = zeroAsBigInt;
       position.lifetimeValue = zeroAsBigInt;
     }
 
-    // UserPosition Section
     let userPositionId = concat(user, positionId);
     let userPosition = UserPosition.load(userPositionId.toHex());
 
@@ -328,9 +388,10 @@ function operateOnSubtree(
       jointPosition = new Position(jointPositionId.toHex());
       jointPosition.collateralToken = collateralToken.toHex();
       jointPosition.collection = jointCollectionId.toHex();
-      jointPosition.conditions = jointConditions;
-      jointPosition.conditionIds = jointConditions;
-      jointPosition.indexSets = jointIndexSets;
+      jointPosition.conditions = jointCollectionInfo.conditions;
+      jointPosition.conditionIds = jointCollectionInfo.conditions;
+      jointPosition.indexSets = jointCollectionInfo.indexSets;
+      jointPosition.multiplicities = jointCollectionInfo.multiplicities;
       jointPosition.lifetimeValue = zeroAsBigInt;
       jointPosition.activeValue = zeroAsBigInt;
     }

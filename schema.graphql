@@ -30,6 +30,7 @@ type Collection @entity {
   conditions: [Condition!]!
   conditionIds: [ID!]!
   indexSets: [BigInt!]!
+  multiplicities: [Int!]!
 }
 
 type Position @entity {
@@ -40,6 +41,7 @@ type Position @entity {
   conditions: [Condition!]!
   conditionIds: [ID!]!
   indexSets: [BigInt!]!
+  multiplicities: [Int!]!
   lifetimeValue: BigInt!
   activeValue: BigInt!
 }
