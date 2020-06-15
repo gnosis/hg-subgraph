@@ -8,7 +8,7 @@ import {
 
 import { Condition, User, CollateralToken, Collection, Position, UserPosition } from '../generated/schema';
 
-import { sum, zeroAsBigInt, concat } from './utils';
+import { sum, zeroAsBigInt, concat, touchUser } from './utils';
 
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
   for (let i = 0; i < indexSet.length && 8 * i < outcomeSlotCount; i++) {
@@ -144,14 +144,7 @@ function operateOnSubtree(
   let conditionIdHex = conditionId.toHex();
   let condition = Condition.load(conditionIdHex);
 
-  let userEntity = User.load(user.toHex());
-  if (userEntity == null) {
-    userEntity = new User(user.toHex());
-    userEntity.firstParticipation = blockTimestamp;
-  }
-
-  userEntity.lastActive = blockTimestamp;
-  userEntity.save();
+  let userEntity = touchUser(user, blockTimestamp);
 
   let parentCollectionInfo: CollectionInfo;
 

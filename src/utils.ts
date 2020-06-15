@@ -1,4 +1,5 @@
-import { BigInt, ByteArray, Bytes } from '@graphprotocol/graph-ts';
+import { BigInt, ByteArray, Bytes, Address } from '@graphprotocol/graph-ts';
+import { User } from '../generated/schema';
 
 export let zeroAsBigInt: BigInt = BigInt.fromI32(0);
 
@@ -28,4 +29,17 @@ export function concat(a: ByteArray, b: ByteArray): ByteArray {
     out[a.length + j] = b[j];
   }
   return out as ByteArray;
+}
+
+export function touchUser(userAddress: Address, blockTimestamp: BigInt): User {
+  let userAddressHex = userAddress.toHexString();
+  let user = User.load(userAddressHex);
+  if (user == null) {
+    user = new User(userAddressHex);
+    user.firstParticipation = blockTimestamp;
+  }
+  user.lastActive = blockTimestamp;
+  user.save();
+
+  return user as User;
 }
