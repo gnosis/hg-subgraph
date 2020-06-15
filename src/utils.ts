@@ -2,6 +2,7 @@ import { BigInt, ByteArray, Bytes, Address } from '@graphprotocol/graph-ts';
 import { User } from '../generated/schema';
 
 export let zeroAsBigInt: BigInt = BigInt.fromI32(0);
+export let zeroAddress: Address = Address.fromString('0x0000000000000000000000000000000000000000');
 
 export function sum(a: BigInt[]): BigInt {
   let result: BigInt = zeroAsBigInt;

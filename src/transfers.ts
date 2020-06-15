@@ -53,11 +53,6 @@ export function handleTransferSingle(event: TransferSingle): void {
   let to = params.to;
   let blockTimestamp = event.block.timestamp;
 
-  if (
-    from.toHex() == '0x0000000000000000000000000000000000000000' ||
-    to.toHex() == '0x0000000000000000000000000000000000000000'
-  ) return;
-
   let fromUser = touchUser(from, blockTimestamp);
   let toUser = touchUser(to, blockTimestamp);
 
@@ -69,11 +64,6 @@ export function handleTransferBatch(event: TransferBatch): void {
   let from = params.from;
   let to = params.to;
   let blockTimestamp = event.block.timestamp;
-
-  if (
-    from.toHex() == '0x0000000000000000000000000000000000000000' ||
-    to.toHex() == '0x0000000000000000000000000000000000000000'
-  ) return;
 
   let fromUser = touchUser(from, blockTimestamp);
   let toUser = touchUser(to, blockTimestamp);

@@ -6,9 +6,9 @@ import {
   ConditionalTokens
 } from '../generated/ConditionalTokens/ConditionalTokens';
 
-import { Condition, User, CollateralToken, Collection, Position, UserPosition } from '../generated/schema';
+import { Condition, CollateralToken, Collection, Position, UserPosition } from '../generated/schema';
 
-import { sum, zeroAsBigInt, concat, touchUser } from './utils';
+import { sum, zeroAsBigInt, concat, touchUser, zeroAddress } from './utils';
 
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
   for (let i = 0; i < indexSet.length && 8 * i < outcomeSlotCount; i++) {
@@ -144,7 +144,7 @@ function operateOnSubtree(
   let conditionIdHex = conditionId.toHex();
   let condition = Condition.load(conditionIdHex);
 
-  let userEntity = touchUser(user, blockTimestamp);
+  touchUser(user, blockTimestamp);
 
   let parentCollectionInfo: CollectionInfo;
 
@@ -301,29 +301,15 @@ function operateOnSubtree(
       position.lifetimeValue = zeroAsBigInt;
     }
 
-    let userPositionId = concat(user, positionId);
-    let userPosition = UserPosition.load(userPositionId.toHex());
+    let zeroUserPositionId = concat(zeroAddress, positionId);
+    let zeroUserPosition = UserPosition.load(zeroUserPositionId.toHex());
 
-    if (userPosition == null) {
-      userPosition = new UserPosition(userPositionId.toHex());
-      userPosition.balance = zeroAsBigInt;
-      userPosition.user = userEntity.id;
-      userPosition.position = position.id;
-    }
-
-    switch (operation) {
-      case SubtreeOperation.Split:
-        position.activeValue = position.activeValue.plus(amount);
-        userPosition.balance = userPosition.balance.plus(amount);
-        break;
-      case SubtreeOperation.Merge:
-        position.activeValue = position.activeValue.minus(amount);
-        userPosition.balance = userPosition.balance.minus(amount);
-        break;
-      case SubtreeOperation.Redeem:
-        position.activeValue = position.activeValue.minus(userPosition.balance);
-        userPosition.balance = zeroAsBigInt;
-        break;
+    if (zeroUserPosition != null) {
+      position.activeValue = zeroUserPosition.balance.neg();
+    } else {
+      log.error('could not retrieve zeroUserPosition for position {}', [
+        position.id
+      ]);
     }
 
     if (position.activeValue.gt(position.lifetimeValue)) {
@@ -331,7 +317,6 @@ function operateOnSubtree(
     }
 
     position.save();
-    userPosition.save();
   }
 
   if(changesDepth && rootBranch) {
@@ -387,8 +372,6 @@ function operateOnSubtree(
         jointPosition.activeValue = jointPosition.activeValue.minus(amount);
         break;
       case SubtreeOperation.Merge:
-        jointPosition.activeValue = jointPosition.activeValue.plus(amount);
-        break;
       case SubtreeOperation.Redeem:
         jointPosition.activeValue = jointPosition.activeValue.plus(amount);
         break;
@@ -399,35 +382,6 @@ function operateOnSubtree(
     }
 
     jointPosition.save();
-  
-    let userJointPositionId = concat(user, jointPositionId);
-    let userJointPosition = UserPosition.load(userJointPositionId.toHex());
-    if (userJointPosition == null) {
-      if (operation === SubtreeOperation.Split) {
-        log.error("expected joint position {} of user {} to exist", [
-          jointPositionId.toHex(),
-          user.toHex(),
-        ]);
-      }
-
-      userJointPosition = new UserPosition(userJointPositionId.toHex());
-      userJointPosition.user = userEntity.id;
-      userJointPosition.position = jointPosition.id;
-      userJointPosition.balance = zeroAsBigInt;
-    }
-
-    switch (operation) {
-      case SubtreeOperation.Split:
-        userJointPosition.balance = userJointPosition.balance.minus(amount);
-        break;
-      case SubtreeOperation.Merge:
-        userJointPosition.balance = userJointPosition.balance.plus(amount);
-        break;
-      case SubtreeOperation.Redeem:
-        userJointPosition.balance = userJointPosition.balance.plus(amount);
-        break;
-    }
-    userJointPosition.save();
   }
 }
 
