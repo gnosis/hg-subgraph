@@ -102,6 +102,10 @@ describe('Complete scenario tests for accurate mappings', function () {
     collateralToken = await ERC20Mintable.new({ from: minter });
   });
 
+  step('wait for graph sync', async () => {
+    await waitForGraphSync();
+  });
+
   let trader1StartingNumPositions = 0;
   let trader2StartingNumPositions = 0;
   step('get starting vars of traders off of graph', async function () {
