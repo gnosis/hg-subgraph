@@ -27,9 +27,9 @@ function toUserPositionId(userAddress, positionId) {
   return (userAddress + positionId.replace(/^0x/, '')).toLowerCase();
 }
 
-const collateralQuery = gql`
+const collateralTokenQuery = gql`
   query($collateralId: ID) {
-    collateral(id: $collateralId) {
+    collateralToken(id: $collateralId) {
       id
       activeAmount
       splitAmount
@@ -44,9 +44,6 @@ const userQuery = gql`
     user(id: $userId) {
       id
       userPositions {
-        id
-      }
-      participatedConditions {
         id
       }
       firstParticipation
@@ -105,9 +102,7 @@ describe('Complete scenario tests for accurate mappings', function () {
     collateralToken = await ERC20Mintable.new({ from: minter });
   });
 
-  let trader1StartingNumParticipatedConditions = 0;
   let trader1StartingNumPositions = 0;
-  let trader2StartingNumParticipatedConditions = 0;
   let trader2StartingNumPositions = 0;
   step('get starting vars of traders off of graph', async function () {
     const { user: user1 } = (
@@ -118,7 +113,6 @@ describe('Complete scenario tests for accurate mappings', function () {
     ).data;
 
     if (user1 != null) {
-      trader1StartingNumParticipatedConditions = user1.participatedConditions.length;
       trader1StartingNumPositions = user1.userPositions.length;
     }
 
@@ -130,7 +124,6 @@ describe('Complete scenario tests for accurate mappings', function () {
     ).data;
 
     if (user2 != null) {
-      trader2StartingNumParticipatedConditions = user2.participatedConditions.length;
       trader2StartingNumPositions = user2.userPositions.length;
     }
   });
@@ -185,18 +178,18 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph collateral data', async () => {
-    const { collateral } = (
+    const { collateralToken: collateralTokenData } = (
       await subgraphClient.query({
-        query: collateralQuery,
+        query: collateralTokenQuery,
         variables: {
           collateralId: collateralToken.address.toLowerCase(),
         },
       })
     ).data;
-    assert.equal(collateral.activeAmount, 50);
-    assert.equal(collateral.splitAmount, 50);
-    assert.equal(collateral.mergedAmount, 0);
-    assert.equal(collateral.redeemedAmount, 0);
+    assert.equal(collateralTokenData.activeAmount, 50);
+    assert.equal(collateralTokenData.splitAmount, 50);
+    assert.equal(collateralTokenData.mergedAmount, 0);
+    assert.equal(collateralTokenData.redeemedAmount, 0);
   });
 
   step('check graph T1 C1 positions data', async () => {
@@ -230,11 +223,7 @@ describe('Complete scenario tests for accurate mappings', function () {
       })
     ).data;
 
-    assert.lengthOf(user.participatedConditions, trader1StartingNumParticipatedConditions + 1);
     assert.lengthOf(user.userPositions, trader1StartingNumPositions + 2);
-    assert.includeDeepMembers(user.participatedConditions, [
-      { __typename: 'Condition', id: conditionId1 },
-    ]);
     assert.includeMembers(
       user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       positionIds1
@@ -276,12 +265,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         variables: { userId: trader1.toLowerCase() },
       })
     ).data.user;
-    assert.lengthOf(user.participatedConditions, trader1StartingNumParticipatedConditions + 2);
     assert.lengthOf(user.userPositions, trader1StartingNumPositions + 4);
-    assert.includeDeepMembers(user.participatedConditions, [
-      { __typename: 'Condition', id: conditionId1 },
-      { __typename: 'Condition', id: conditionId2 },
-    ]);
     assert.includeMembers(
       user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [...positionIds1, ...positionIds2]
@@ -394,11 +378,6 @@ describe('Complete scenario tests for accurate mappings', function () {
       })
     ).data;
 
-    assert.lengthOf(user.participatedConditions, trader1StartingNumParticipatedConditions + 2);
-    let participatedConditionIds = user.participatedConditions.map((condition) => {
-      return condition.id;
-    });
-    assert.includeMembers(participatedConditionIds, [conditionId1, conditionId2]);
     assert.lengthOf(user.userPositions, trader1StartingNumPositions + 6);
     assert.includeMembers(
       user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
@@ -643,12 +622,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         variables: { userId: trader2.toLowerCase() },
       })
     ).data;
-    assert.lengthOf(user.participatedConditions, trader2StartingNumParticipatedConditions + 1);
     assert.lengthOf(user.userPositions, trader2StartingNumPositions + 1);
-    let participatedConditionIds = user.participatedConditions.map((condition) => {
-      return condition.id;
-    });
-    assert.includeMembers(participatedConditionIds, [conditionId1]);
     assert.includeMembers(
       user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [positionIds1[0]]
@@ -680,12 +654,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         variables: { userId: trader2.toLowerCase() },
       })
     ).data;
-    assert.lengthOf(user.participatedConditions, trader2StartingNumParticipatedConditions + 2);
     assert.lengthOf(user.userPositions, trader2StartingNumPositions + 3);
-    let participatedConditionIds = user.participatedConditions.map((condition) => {
-      return condition.id;
-    });
-    assert.includeMembers(participatedConditionIds, [conditionId1, conditionId2]);
     assert.includeMembers(
       user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [positionIds1[0], ...positionIds2]
@@ -798,17 +767,17 @@ describe('Complete scenario tests for accurate mappings', function () {
   });
 
   step('check graph collateral data', async () => {
-    const { collateral } = (
+    const { collateralToken: collateralTokenData } = (
       await subgraphClient.query({
-        query: collateralQuery,
+        query: collateralTokenQuery,
         variables: {
           collateralId: collateralToken.address.toLowerCase(),
         },
       })
     ).data;
-    assert.equal(collateral.activeAmount, 25);
-    assert.equal(collateral.splitAmount, 50);
-    assert.equal(collateral.mergedAmount, 10);
-    assert.equal(collateral.redeemedAmount, 15);
+    assert.equal(collateralTokenData.activeAmount, 25);
+    assert.equal(collateralTokenData.splitAmount, 50);
+    assert.equal(collateralTokenData.mergedAmount, 10);
+    assert.equal(collateralTokenData.redeemedAmount, 15);
   });
 });

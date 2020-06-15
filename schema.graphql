@@ -7,16 +7,20 @@ type Condition @entity {
 
   creator: Bytes!
   createTransaction: Bytes!
-  creationTimestamp: BigInt!
-  creationBlockNumber: BigInt
+  createTimestamp: BigInt!
+  createBlockNumber: BigInt!
 
   resolved: Boolean!
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
+  resolveBlockNumber: BigInt
+
   payoutNumerators: [BigInt!]
   payoutDenominator: BigInt
+  payouts: [BigDecimal!]
 
   collections: [Collection!] @derivedFrom(field: "conditions")
+  positions: [Position!] @derivedFrom(field: "conditions")
 }
 
 type Collection @entity {
@@ -31,41 +35,47 @@ type Collection @entity {
   conditionIds: [ID!]!
   indexSets: [BigInt!]!
   multiplicities: [Int!]!
+
+  positions: [Position!] @derivedFrom(field: "collection")
 }
 
 type Position @entity {
   id: ID!
-  collateralToken: Collateral!
+
+  collateralToken: CollateralToken!
   collection: Collection!
+
   # see note above about conditions/conditionIds duplication
   conditions: [Condition!]!
   conditionIds: [ID!]!
   indexSets: [BigInt!]!
   multiplicities: [Int!]!
+
   lifetimeValue: BigInt!
   activeValue: BigInt!
 }
 
 type UserPosition @entity {
- id: ID!
- position: Position! 
- balance: BigInt!
- user: User!
+  id: ID!
+  position: Position!
+  balance: BigInt!
+  user: User!
 }
 
 type User @entity {
- id: ID!
- userPositions: [UserPosition!] @derivedFrom(field: "user")
- participatedConditions: [Condition!]!
- firstParticipation: BigInt!
- lastActive: BigInt!
+  id: ID!
+  firstParticipation: BigInt!
+  lastActive: BigInt!
+
+  userPositions: [UserPosition!] @derivedFrom(field: "user")
 }
 
-type Collateral @entity {
+type CollateralToken @entity {
   id: ID!
   activeAmount: BigInt!
   splitAmount: BigInt!
   mergedAmount: BigInt!
   redeemedAmount: BigInt!
-}
 
+  positions: [Position!] @derivedFrom(field: "collateralToken")
+}

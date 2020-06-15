@@ -22,7 +22,7 @@ dataSources:
         - UserPosition
         - User
         - Operator
-        - Collateral
+        - CollateralToken
       abis:
         - name: ConditionalTokens
           file: ./abis/ConditionalTokens.json

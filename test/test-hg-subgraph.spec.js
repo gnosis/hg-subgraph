@@ -34,8 +34,8 @@ async function getCondition(conditionId) {
             payoutNumerators
             payoutDenominator
             createTransaction
-            creationTimestamp
-            creationBlockNumber
+            createTimestamp
+            createBlockNumber
             resolveTransaction
             resolveTimestamp
             collections {
@@ -143,7 +143,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           from: creator,
         });
 
-        const { timestamp: creationTimestamp } = await web3.eth.getBlock(createBlockNumber);
+        const { timestamp: createTimestamp } = await web3.eth.getBlock(createBlockNumber);
 
         conditionsInfo[i] = {
           conditionId,
@@ -151,7 +151,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           creator,
           createTransaction,
           createBlockNumber,
-          creationTimestamp,
+          createTimestamp,
 
           oracle,
           questionId,
@@ -177,8 +177,8 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           payoutNumerators: null,
           payoutDenominator: null,
           createTransaction: info.createTransaction,
-          creationTimestamp: info.creationTimestamp.toString(),
-          creationBlockNumber: info.createBlockNumber.toString(),
+          createTimestamp: info.createTimestamp.toString(),
+          createBlockNumber: info.createBlockNumber.toString(),
           resolveTransaction: null,
           resolveTimestamp: null,
           collections: [],
@@ -222,8 +222,8 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             payoutNumerators: info.payoutNumerators.map((x) => x.toString()),
             payoutDenominator: info.payoutNumerators.reduce((a, b) => a + b, 0).toString(),
             createTransaction: info.createTransaction,
-            creationTimestamp: info.creationTimestamp.toString(),
-            creationBlockNumber: info.createBlockNumber.toString(),
+            createTimestamp: info.createTimestamp.toString(),
+            createBlockNumber: info.createBlockNumber.toString(),
             resolveTransaction: info.resolveTransaction,
             resolveTimestamp: info.resolutionTimestamp.toString(),
             collections: [],
@@ -298,7 +298,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             __typename: 'Position',
             id: positionId,
             collateralToken: {
-              __typename: 'Collateral',
+              __typename: 'CollateralToken',
               id: collateralToken.address.toLowerCase(),
             },
             collection: {
@@ -380,7 +380,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             __typename: 'Position',
             id: unionPositionId,
             collateralToken: {
-              __typename: 'Collateral',
+              __typename: 'CollateralToken',
               id: collateralToken.address.toLowerCase(),
             },
             collection: {
@@ -431,7 +431,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               __typename: 'Position',
               id: positionId,
               collateralToken: {
-                __typename: 'Collateral',
+                __typename: 'CollateralToken',
                 id: collateralToken.address.toLowerCase(),
               },
               collection: {
@@ -484,7 +484,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               __typename: 'Position',
               id: unionPositionId,
               collateralToken: {
-                __typename: 'Collateral',
+                __typename: 'CollateralToken',
                 id: collateralToken.address.toLowerCase(),
               },
               collection: {
@@ -535,7 +535,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: positionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -609,7 +609,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               __typename: 'Position',
               id: oldPositionId,
               collateralToken: {
-                __typename: 'Collateral',
+                __typename: 'CollateralToken',
                 id: collateralToken.address.toLowerCase(),
               },
               collection: {
@@ -663,7 +663,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               __typename: 'Position',
               id: unionPositionId,
               collateralToken: {
-                __typename: 'Collateral',
+                __typename: 'CollateralToken',
                 id: collateralToken.address.toLowerCase(),
               },
               collection: {
@@ -714,7 +714,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: positionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -796,7 +796,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               __typename: 'Position',
               id: parentPositionId,
               collateralToken: {
-                __typename: 'Collateral',
+                __typename: 'CollateralToken',
                 id: collateralToken.address.toLowerCase(),
               },
               collection: {
@@ -851,7 +851,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               __typename: 'Position',
               id: positionId,
               collateralToken: {
-                __typename: 'Collateral',
+                __typename: 'CollateralToken',
                 id: collateralToken.address.toLowerCase(),
               },
               collection: {
@@ -961,7 +961,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: unionPositionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -1026,7 +1026,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: positionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -1090,7 +1090,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Position',
                   id: unionPositionId,
                   collateralToken: {
-                    __typename: 'Collateral',
+                    __typename: 'CollateralToken',
                     id: collateralToken.address.toLowerCase(),
                   },
                   collection: {
@@ -1155,7 +1155,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Position',
                   id: positionId,
                   collateralToken: {
-                    __typename: 'Collateral',
+                    __typename: 'CollateralToken',
                     id: collateralToken.address.toLowerCase(),
                   },
                   collection: {
@@ -1260,7 +1260,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Position',
                   id: oldPositionId,
                   collateralToken: {
-                    __typename: 'Collateral',
+                    __typename: 'CollateralToken',
                     id: collateralToken.address.toLowerCase(),
                   },
                   collection: {
@@ -1325,7 +1325,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Position',
                   id: positionId,
                   collateralToken: {
-                    __typename: 'Collateral',
+                    __typename: 'CollateralToken',
                     id: collateralToken.address.toLowerCase(),
                   },
                   collection: {
@@ -1366,7 +1366,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Position',
                   id: unionPositionId,
                   collateralToken: {
-                    __typename: 'Collateral',
+                    __typename: 'CollateralToken',
                     id: collateralToken.address.toLowerCase(),
                   },
                   collection: {
@@ -1429,7 +1429,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: parentPositionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -1484,7 +1484,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: positionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -1556,7 +1556,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: oldPositionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -1611,7 +1611,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: positionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -1668,7 +1668,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Position',
                 id: parentPositionId,
                 collateralToken: {
-                  __typename: 'Collateral',
+                  __typename: 'CollateralToken',
                   id: collateralToken.address.toLowerCase(),
                 },
                 collection: {
@@ -1714,7 +1714,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               __typename: 'Position',
               id: positionId,
               collateralToken: {
-                __typename: 'Collateral',
+                __typename: 'CollateralToken',
                 id: collateralToken.address.toLowerCase(),
               },
               collection: {

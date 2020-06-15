@@ -6,9 +6,9 @@ import {
   ConditionalTokens
 } from '../generated/ConditionalTokens/ConditionalTokens';
 
-import { Condition, User, Collateral, Collection, Position, UserPosition } from '../generated/schema';
+import { Condition, User, CollateralToken, Collection, Position, UserPosition } from '../generated/schema';
 
-import { sum, zeroAsBigInt, concat, checkIfValueExistsInArray } from './utils';
+import { sum, zeroAsBigInt, concat } from './utils';
 
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
   for (let i = 0; i < indexSet.length && 8 * i < outcomeSlotCount; i++) {
@@ -148,13 +148,6 @@ function operateOnSubtree(
   if (userEntity == null) {
     userEntity = new User(user.toHex());
     userEntity.firstParticipation = blockTimestamp;
-    userEntity.participatedConditions = [];
-  }
-
-  if (!checkIfValueExistsInArray(userEntity.participatedConditions, conditionIdHex)) {
-    let userParticipatedConditions = userEntity.participatedConditions;
-    userParticipatedConditions.push(conditionIdHex);
-    userEntity.participatedConditions = userParticipatedConditions;
   }
 
   userEntity.lastActive = blockTimestamp;
@@ -349,13 +342,13 @@ function operateOnSubtree(
   }
 
   if(changesDepth && rootBranch) {
-    let collateral = Collateral.load(collateralToken.toHex());
+    let collateral = CollateralToken.load(collateralToken.toHex());
     if (collateral == null) {
       if (operation !== SubtreeOperation.Split) {
         log.error("expected collateral {} to exist", [collateralToken.toHex()]);
       }
   
-      collateral = new Collateral(collateralToken.toHex());
+      collateral = new CollateralToken(collateralToken.toHex());
       collateral.activeAmount = zeroAsBigInt;
       collateral.splitAmount = zeroAsBigInt;
       collateral.mergedAmount = zeroAsBigInt;

@@ -7,7 +7,7 @@ import {
 
 import { User, Position, UserPosition } from '../generated/schema';
 
-import { bigIntToBytes32, concat, checkIfValueExistsInArray, zeroAsBigInt } from './utils';
+import { bigIntToBytes32, concat, zeroAsBigInt } from './utils';
 
 export function handleTransferSingle(event: TransferSingle): void {
   let params = event.params;
@@ -31,25 +31,8 @@ export function handleTransferSingle(event: TransferSingle): void {
   if (toUser == null) {
     toUser = new User(params.to.toHex());
     toUser.firstParticipation = event.block.timestamp;
-    toUser.participatedConditions = [];
   }
   toUser.lastActive = event.block.timestamp;
-  // Update toUser.participatedConditions
-  let clonePositionsConditions = position.conditions;
-  for (var q = 0; q < clonePositionsConditions.length; q++) {
-    if (
-      !checkIfValueExistsInArray(
-        toUser.participatedConditions as string[],
-        clonePositionsConditions[q]
-      )
-    ) {
-      let toUserParticipatedConditions = toUser.participatedConditions;
-      toUserParticipatedConditions[toUserParticipatedConditions.length] =
-        clonePositionsConditions[q];
-      toUser.participatedConditions = toUserParticipatedConditions;
-      toUser.save();
-    }
-  }
   toUser.save();
 
   // toUser UserPosition Section
@@ -78,7 +61,6 @@ export function handleTransferBatch(event: TransferBatch): void {
   if (fromUser == null) {
     fromUser = new User(params.from.toHex());
     fromUser.firstParticipation = event.block.timestamp;
-    fromUser.participatedConditions = [];
   }
   fromUser.lastActive = event.block.timestamp;
   fromUser.save();
@@ -86,7 +68,6 @@ export function handleTransferBatch(event: TransferBatch): void {
   if (toUser == null) {
     toUser = new User(params.to.toHex());
     toUser.firstParticipation = event.block.timestamp;
-    toUser.participatedConditions = [];
   }
   toUser.lastActive = event.block.timestamp;
   toUser.save();
@@ -103,22 +84,6 @@ export function handleTransferBatch(event: TransferBatch): void {
     } else {
       if (!Array.isArray(clonedPosition.conditions)) {
         clonedPosition.conditions = [];
-      }
-  
-      let clonedPositionConditions = clonedPosition.conditions;
-      for (var q = 0; q < clonedPositionConditions.length; q++) {
-        if (
-          !checkIfValueExistsInArray(
-            toUser.participatedConditions as string[],
-            clonedPositionConditions[q]
-          )
-        ) {
-          let toUserParticipatedConditions = toUser.participatedConditions;
-          toUserParticipatedConditions[toUserParticipatedConditions.length] =
-            clonedPositionConditions[q];
-          toUser.participatedConditions = toUserParticipatedConditions;
-          toUser.save();
-        }
       }
     }
 

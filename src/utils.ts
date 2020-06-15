@@ -29,15 +29,3 @@ export function concat(a: ByteArray, b: ByteArray): ByteArray {
   }
   return out as ByteArray;
 }
-
-export function checkIfValueExistsInArray(
-  participatedConditions: string[],
-  condition: string
-): boolean {
-  for (let i = 0; i < participatedConditions.length; i++) {
-    if (participatedConditions[i] == condition) {
-      return true;
-    }
-  }
-  return false;
-}
