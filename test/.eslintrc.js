@@ -1,5 +1,8 @@
 module.exports = {
   env: {
-    mocha: true
-  }
+    mocha: true,
+  },
+  globals: {
+    step: 'readonly',
+  },
 };

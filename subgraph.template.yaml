@@ -1,0 +1,44 @@
+specVersion: 0.0.2
+description: Conditional Tokens subgraph
+repository: 'https://github.com/gnosis/hg-contracts'
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: ConditionalTokens
+    network: {{network}}
+    source:
+      address: '{{ConditionalTokens.address}}'
+      abi: ConditionalTokens
+      startBlock: {{ConditionalTokens.startBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - Condition
+        - Collection
+        - Position
+        - UserPosition
+        - User
+        - Operator
+        - CollateralToken
+      abis:
+        - name: ConditionalTokens
+          file: ./abis/ConditionalTokens.json
+      eventHandlers:
+        - event: 'ConditionPreparation(indexed bytes32,indexed address,indexed bytes32,uint256)'
+          handler: handleConditionPreparation
+        - event: 'ConditionResolution(indexed bytes32,indexed address,indexed bytes32,uint256,uint256[])'
+          handler: handleConditionResolution
+        - event: 'PositionSplit(indexed address,address,indexed bytes32,indexed bytes32,uint256[],uint256)'
+          handler: handlePositionSplit
+        - event: 'PositionsMerge(indexed address,address,indexed bytes32,indexed bytes32,uint256[],uint256)'
+          handler: handlePositionsMerge
+        - event: 'PayoutRedemption(indexed address,indexed address,indexed bytes32,bytes32,uint256[],uint256)'
+          handler: handlePayoutRedemption
+        - event: 'TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)'
+          handler: handleTransferSingle
+        - event: 'TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])'
+          handler: handleTransferBatch
+      file: ./src/mapping.ts

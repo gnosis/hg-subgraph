@@ -1,62 +1,81 @@
 type Condition @entity {
   id: ID!
-  creator: Bytes!
+
   oracle: Bytes!
   questionId: Bytes!
   outcomeSlotCount: Int!
-  resolved: Boolean!
-  payoutNumerators: [BigInt!]
-  payoutDenominator: BigInt
+
+  creator: Bytes!
   createTransaction: Bytes!
-  creationTimestamp: BigInt!
+  createTimestamp: BigInt!
+  createBlockNumber: BigInt!
+
+  resolved: Boolean!
   resolveTransaction: Bytes
   resolveTimestamp: BigInt
-  blockNumber: BigInt
+  resolveBlockNumber: BigInt
+
+  payoutNumerators: [BigInt!]
+  payoutDenominator: BigInt
+  payouts: [BigDecimal!]
+
   collections: [Collection!] @derivedFrom(field: "conditions")
+  positions: [Position!] @derivedFrom(field: "conditions")
 }
 
 type Collection @entity {
   id: ID!
+  # conditions is duplicated as conditionIds
+  # so that when querying the graph node,
+  # the graph does not attempt to join with the other table
+  # which would cause conditions to be returned
+  # sorted by ID, instead of in the same order as
+  # the raw field data.
   conditions: [Condition!]!
+  conditionIds: [ID!]!
   indexSets: [BigInt!]!
+  multiplicities: [Int!]!
+
+  positions: [Position!] @derivedFrom(field: "collection")
 }
 
 type Position @entity {
   id: ID!
-  collateralToken: Bytes!
+
+  collateralToken: CollateralToken!
   collection: Collection!
+
+  # see note above about conditions/conditionIds duplication
   conditions: [Condition!]!
+  conditionIds: [ID!]!
   indexSets: [BigInt!]!
+  multiplicities: [Int!]!
+
   lifetimeValue: BigInt!
   activeValue: BigInt!
 }
 
 type UserPosition @entity {
- id: ID!
- position: Position! 
- balance: BigInt!
- user: User!
+  id: ID!
+  position: Position!
+  balance: BigInt!
+  user: User!
 }
 
 type User @entity {
- id: ID!
- userPositions: [UserPosition!] @derivedFrom(field: "user")
- participatedConditions: [Condition!]
- firstParticipation: BigInt!
- lastActive: BigInt!
-}
-
-type Operator @entity {
   id: ID!
-  totalValueTransferred: BigInt
-  associatedAccounts: [User!]! 
   firstParticipation: BigInt!
   lastActive: BigInt!
+
+  userPositions: [UserPosition!] @derivedFrom(field: "user")
 }
 
-type Collateral @entity {
+type CollateralToken @entity {
   id: ID!
-  splitCollateral: BigInt!
-  redeemedCollateral: BigInt!
-}
+  activeAmount: BigInt!
+  splitAmount: BigInt!
+  mergedAmount: BigInt!
+  redeemedAmount: BigInt!
 
+  positions: [Position!] @derivedFrom(field: "collateralToken")
+}

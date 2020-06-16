@@ -1,6 +1,8 @@
-import { BigInt, ByteArray, Bytes } from '@graphprotocol/graph-ts';
+import { BigInt, ByteArray, Bytes, Address } from '@graphprotocol/graph-ts';
+import { User } from '../generated/schema';
 
 export let zeroAsBigInt: BigInt = BigInt.fromI32(0);
+export let zeroAddress: Address = Address.fromString('0x0000000000000000000000000000000000000000');
 
 export function sum(a: BigInt[]): BigInt {
   let result: BigInt = zeroAsBigInt;
@@ -30,14 +32,15 @@ export function concat(a: ByteArray, b: ByteArray): ByteArray {
   return out as ByteArray;
 }
 
-export function checkIfValueExistsInArray(
-  participatedConditions: string[],
-  condition: string
-): boolean {
-  for (let i = 0; i < participatedConditions.length; i++) {
-    if (participatedConditions[i] == condition) {
-      return true;
-    }
+export function touchUser(userAddress: Address, blockTimestamp: BigInt): User {
+  let userAddressHex = userAddress.toHexString();
+  let user = User.load(userAddressHex);
+  if (user == null) {
+    user = new User(userAddressHex);
+    user.firstParticipation = blockTimestamp;
   }
-  return false;
+  user.lastActive = blockTimestamp;
+  user.save();
+
+  return user as User;
 }
