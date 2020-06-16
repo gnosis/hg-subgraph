@@ -165,29 +165,39 @@ function operateOnSubtree(
           log.error("expected parent collection {} to exist", [parentCollectionId.toHex()]);
         }
 
-        let indexSet = indexSets[0];
-        let childCollectionId = conditionalTokens.getCollectionId(
-          parentCollectionId,
-          conditionId,
-          indexSet,
-        );
-        let childCollection = Collection.load(childCollectionId.toHex());
-        let childCollectionInfo = new CollectionInfo(
-          childCollection.conditions,
-          childCollection.indexSets,
-          childCollection.multiplicities,
-        );
-        parentCollectionInfo = childCollectionInfo.mod(
-          conditionIdHex, indexSet, -1,
-        );
+        for (let i = 0; i < indexSets.length; i++) {
+          let indexSet = indexSets[i];
+          let childCollectionId = conditionalTokens.getCollectionId(
+            parentCollectionId,
+            conditionId,
+            indexSet,
+          );
+          let childCollection = Collection.load(childCollectionId.toHex());
 
-        parentCollection = new Collection(parentCollectionId.toHex());
-        parentCollection.conditions = parentCollectionInfo.conditions;
-        parentCollection.conditionIds = parentCollectionInfo.conditions;
-        parentCollection.indexSets = parentCollectionInfo.indexSets;
-        parentCollection.multiplicities = parentCollectionInfo.multiplicities;
-
-        parentCollection.save();
+          if (childCollection != null) {
+            let childCollectionInfo = new CollectionInfo(
+              childCollection.conditions,
+              childCollection.indexSets,
+              childCollection.multiplicities,
+            );
+            parentCollectionInfo = childCollectionInfo.mod(
+              conditionIdHex, indexSet, -1,
+            );
+    
+            parentCollection = new Collection(parentCollectionId.toHex());
+            parentCollection.conditions = parentCollectionInfo.conditions;
+            parentCollection.conditionIds = parentCollectionInfo.conditions;
+            parentCollection.indexSets = parentCollectionInfo.indexSets;
+            parentCollection.multiplicities = parentCollectionInfo.multiplicities;
+    
+            parentCollection.save();
+            break;
+          }
+        }
+        if (parentCollection == null) {
+          log.error('could not determine parent collection from one of children', []);
+          return;
+        }
       } else {
         parentCollectionInfo = new CollectionInfo(
           parentCollection.conditions,
@@ -211,36 +221,47 @@ function operateOnSubtree(
         log.error("expected union collection {} to exist", [jointCollectionId.toHex()]);
       }
 
-      let indexSet = indexSets[0];
-      let childCollectionId = conditionalTokens.getCollectionId(
-        parentCollectionId,
-        conditionId,
-        indexSet,
-      );
-      let childCollection = Collection.load(childCollectionId.toHex());
-      let childCollectionInfo = new CollectionInfo(
-        childCollection.conditions,
-        childCollection.indexSets,
-        childCollection.multiplicities,
-      );
-      jointCollectionInfo = childCollectionInfo.mod(
-        conditionIdHex,
-        indexSet,
-        -1,
-      ).mod(
-        conditionIdHex,
-        unionIndexSet,
-        1,
-      );
+      for (let i = 0; i < indexSets.length; i++) {
+        let indexSet = indexSets[i];
+        let childCollectionId = conditionalTokens.getCollectionId(
+          parentCollectionId,
+          conditionId,
+          indexSet,
+        );
+        let childCollection = Collection.load(childCollectionId.toHex());
 
-      unionCollection = new Collection(jointCollectionId.toHex());
-      unionCollection.conditions = jointCollectionInfo.conditions;
-      unionCollection.conditionIds = jointCollectionInfo.conditions;
-      unionCollection.indexSets = jointCollectionInfo.indexSets;
-      unionCollection.multiplicities = jointCollectionInfo.multiplicities;
+        if (childCollection != null) {
+          let childCollectionInfo = new CollectionInfo(
+            childCollection.conditions,
+            childCollection.indexSets,
+            childCollection.multiplicities,
+          );
+          jointCollectionInfo = childCollectionInfo.mod(
+            conditionIdHex,
+            indexSet,
+            -1,
+          ).mod(
+            conditionIdHex,
+            unionIndexSet,
+            1,
+          );
+  
+          unionCollection = new Collection(jointCollectionId.toHex());
+          unionCollection.conditions = jointCollectionInfo.conditions;
+          unionCollection.conditionIds = jointCollectionInfo.conditions;
+          unionCollection.indexSets = jointCollectionInfo.indexSets;
+          unionCollection.multiplicities = jointCollectionInfo.multiplicities;
+    
+          unionCollection.save();
+          break;
+        }
+      }
 
-      unionCollection.save();
-    } else {
+      if (unionCollection == null) {
+        log.error('could not determine union collection from one of children', []);
+        return;
+      }
+  } else {
       jointCollectionInfo = new CollectionInfo(
         unionCollection.conditions,
         unionCollection.indexSets,
