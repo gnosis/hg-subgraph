@@ -22,14 +22,17 @@ function recordUserPositionChange(
     userPosition = new UserPosition(userPositionId.toHex());
     userPosition.user = userId;
     userPosition.balance = zeroAsBigInt;
+    userPosition.wrappedBalance = zeroAsBigInt;
+    userPosition.totalBalance = zeroAsBigInt;
     userPosition.position = positionIdBytes.toHex();
-  }
+}
 
   if (isCredit) {
     userPosition.balance = userPosition.balance.plus(value);
   } else {
     userPosition.balance = userPosition.balance.minus(value);
   }
+  userPosition.totalBalance = userPosition.balance.plus(userPosition.wrappedBalance);
 
   userPosition.save();
 }

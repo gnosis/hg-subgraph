@@ -6,7 +6,7 @@
   "description": "A subgraph for Gnosis Conditional Tokens",
   "license": "LGPL-3.0",
   "scripts": {
-    "migrate": "npm explore @gnosis.pm/conditional-tokens-contracts -- truffle migrate --network=local --reset",
+    "migrate": "npm explore @gnosis.pm/conditional-tokens-contracts -- truffle migrate --network=local --reset && npm explore 1155-to-20 -- truffle migrate --network=local --reset",
     "create-local": "graph create --node http://localhost:8020 gnosis/hg",
     "remove-local": "graph remove --node http://localhost:8020 gnosis/hg",
     "deploy-local": "graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 gnosis/hg",
@@ -29,9 +29,11 @@
     "publish-graph:mainnet": "npm run codegen:mainnet && npm run deploy:mainnet"
   },
   "devDependencies": {
-    "@gnosis.pm/conditional-tokens-contracts": "^1.0.1",
+    "1155-to-20": "github:gnosis/1155-to-20",
+    "@gnosis.pm/conditional-tokens-contracts": "^1.0.3",
     "@graphprotocol/graph-cli": "^0.18.0",
     "@graphprotocol/graph-ts": "^0.18.1",
+    "@openzeppelin/contracts": "^3.2.0",
     "@truffle/contract": "^4.2.6",
     "@typescript-eslint/eslint-plugin": "^3.0.1",
     "@typescript-eslint/parser": "^3.0.1",
@@ -44,16 +46,16 @@
     "eslint-plugin-prettier": "^3.1.3",
     "fs-extra": "^9.0.0",
     "husky": "^4.2.5",
-    "lint-staged": "^10.2.6",
+    "lint-staged": "^10.4.0",
     "mocha": "^7.2.0",
     "mocha-steps": "^1.3.0",
     "mustache": "^4.0.1",
     "node-fetch": "^2.6.1",
-    "openzeppelin-solidity": "^3.0.1",
-    "prettier": "^2.0.5",
+    "openzeppelin-solidity": "^2.5.1",
+    "prettier": "^2.1.2",
     "truffle": "^5.1.27",
     "wait-on": "^5.0.0",
-    "web3": "^1.2.8"
+    "web3": "^1.3.0"
   },
   "husky": {
     "hooks": {

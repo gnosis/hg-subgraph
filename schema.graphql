@@ -53,12 +53,16 @@ type Position @entity {
 
   lifetimeValue: BigInt!
   activeValue: BigInt!
+
+  wrappedToken: WrappedToken @derivedFrom(field: "position")
 }
 
 type UserPosition @entity {
   id: ID!
   position: Position!
   balance: BigInt!
+  wrappedBalance: BigInt!
+  totalBalance: BigInt!
   user: User!
 }
 
@@ -78,4 +82,9 @@ type CollateralToken @entity {
   redeemedAmount: BigInt!
 
   positions: [Position!] @derivedFrom(field: "collateralToken")
+}
+
+type WrappedToken @entity {
+  id: ID!
+  position: Position!
 }

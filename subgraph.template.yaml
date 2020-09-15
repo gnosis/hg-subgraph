@@ -42,3 +42,44 @@ dataSources:
         - event: 'TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])'
           handler: handleTransferBatch
       file: ./src/mapping.ts
+
+  - kind: ethereum/contract
+    name: Wrapped1155Factory
+    network: {{network}}
+    source:
+      address: '{{Wrapped1155Factory.address}}'
+      abi: Wrapped1155Factory
+      startBlock: {{Wrapped1155Factory.startBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - WrappedToken
+      abis:
+        - name: Wrapped1155Factory
+          file: ./abis/Wrapped1155Factory.json
+      eventHandlers:
+        - event: 'Wrapped1155Creation(indexed address,indexed uint256,indexed address)'
+          handler: handleWrapped1155Creation
+      file: ./src/wrappedtokens.ts
+
+templates:
+  - kind: ethereum/contract
+    name: Wrapped1155
+    network: {{network}}
+    source:
+      abi: Wrapped1155
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - WrappedToken
+      abis:
+        - name: Wrapped1155
+          file: ./abis/Wrapped1155.json
+      eventHandlers:
+        - event: 'Transfer(indexed address,indexed address,uint256)'
+          handler: handleTransfer
+      file: ./src/wrappedtokens.ts
