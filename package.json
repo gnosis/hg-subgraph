@@ -29,7 +29,7 @@
     "publish-graph:mainnet": "npm run codegen:mainnet && npm run deploy:mainnet"
   },
   "devDependencies": {
-    "1155-to-20": "github:gnosis/1155-to-20",
+    "1155-to-20": "^1.0.0",
     "@gnosis.pm/conditional-tokens-contracts": "^1.0.3",
     "@graphprotocol/graph-cli": "^0.18.0",
     "@graphprotocol/graph-ts": "^0.18.1",
