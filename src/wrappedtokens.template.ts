@@ -3,13 +3,13 @@ import { Wrapped1155Creation } from '../generated/Wrapped1155Factory/Wrapped1155
 import { Transfer } from '../generated/templates/Wrapped1155/Wrapped1155';
 import { Position, UserPosition, WrappedToken } from '../generated/schema'
 import { Wrapped1155 } from '../generated/templates'
-import { touchUser, zeroAsBigInt } from './utils';
+import { bigIntToBytes32, touchUser, zeroAsBigInt } from './utils';
 
 export function handleWrapped1155Creation(event: Wrapped1155Creation): void {
     if (event.params.multiToken.toHexString() != '{{ConditionalTokens.addressLowerCase}}') return;
 
     let wrappedToken = new WrappedToken(event.params.wrappedToken.toHexString());
-    wrappedToken.position = event.params.tokenId.toHexString();
+    wrappedToken.position = bigIntToBytes32(event.params.tokenId).toHexString();
     wrappedToken.save();
 
     Wrapped1155.create(event.params.wrappedToken);
