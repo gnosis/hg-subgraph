@@ -6,10 +6,16 @@ const TruffleContract = require('@truffle/contract');
 const ConditionalTokens = TruffleContract(
   require('@gnosis.pm/conditional-tokens-contracts/build/contracts/ConditionalTokens.json')
 );
+const Wrapped1155Factory = TruffleContract(
+  require('1155-to-20/build/contracts/Wrapped1155Factory.json')
+);
+const Wrapped1155 = TruffleContract(require('1155-to-20/build/contracts/Wrapped1155.json'));
 const ERC20Mintable = TruffleContract(
   require('openzeppelin-solidity/build/contracts/ERC20Mintable.json')
 );
-[ConditionalTokens, ERC20Mintable].forEach((C) => C.setProvider('http://localhost:8545'));
+[ConditionalTokens, Wrapped1155Factory, Wrapped1155, ERC20Mintable].forEach((C) =>
+  C.setProvider('http://localhost:8545')
+);
 
 const web3 = ConditionalTokens.web3;
 
@@ -73,6 +79,8 @@ const positionAndUserPositionQuery = gql`
     userPosition(id: $userPositionId) {
       id
       balance
+      wrappedBalance
+      totalBalance
       position {
         id
       }
@@ -96,9 +104,10 @@ describe('Complete scenario tests for accurate mappings', function () {
     [creator, oracle] = accounts;
   });
 
-  let conditionalTokens, collateralToken;
+  let conditionalTokens, wrapped1155Factory, collateralToken;
   step('get required contracts', async function () {
     conditionalTokens = await ConditionalTokens.deployed();
+    wrapped1155Factory = await Wrapped1155Factory.deployed();
     collateralToken = await ERC20Mintable.new({ from: minter });
   });
 
@@ -236,7 +245,7 @@ describe('Complete scenario tests for accurate mappings', function () {
 
   let collectionToSplitOn, collectionNotSplitOn;
   let collectionIds2, positionIds2;
-  step('T1 split $25:C1(b|c) -C2-> [$25:C1(b|c)&C2(b|c), $50:C1(b|c)&C2(a)]', async () => {
+  step('T1 split $25:C1(b|c) -C2-> [$25:C1(b|c)&C2(b|c), $25:C1(b|c)&C2(a)]', async () => {
     collectionToSplitOn = collectionIds1[0];
     collectionNotSplitOn = collectionIds1[1];
 
@@ -433,6 +442,96 @@ describe('Complete scenario tests for accurate mappings', function () {
     assert.equal(userPosition.position.id, positionIds1[0]);
   });
 
+  step('wrap [$5:C1(b|c), $30:C1(a)]', async () => {
+    await conditionalTokens.safeBatchTransferFrom(
+      trader1,
+      wrapped1155Factory.address,
+      positionIds1,
+      [5, 30],
+      '0x',
+      { from: trader1 }
+    );
+  });
+
+  step('check graph T1 C1(b|c) position data', async () => {
+    await waitForGraphSync();
+
+    const { position, userPosition } = (
+      await subgraphClient.query({
+        query: positionAndUserPositionQuery,
+        variables: {
+          positionId: positionIds1[0],
+          userPositionId: toUserPositionId(trader1, positionIds1[0]),
+        },
+      })
+    ).data;
+    assert.equal(position.activeValue, 20);
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(userPosition.balance, 15);
+    assert.equal(userPosition.wrappedBalance, 5);
+    assert.equal(userPosition.totalBalance, 20);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(userPosition.position.id, positionIds1[0]);
+  });
+
+  step('T1 transfers {$20:C1(a)} to T2', async () => {
+    const wrapped1155 = await Wrapped1155.at(
+      await wrapped1155Factory.getWrapped1155(conditionalTokens.address, positionIds1[1])
+    );
+    await wrapped1155.transfer(trader2, 20, { from: trader1 });
+  });
+
+  step('check graph T1 C1(a) position data', async () => {
+    await waitForGraphSync();
+
+    const { position, userPosition: trader1Position } = (
+      await subgraphClient.query({
+        query: positionAndUserPositionQuery,
+        variables: {
+          positionId: positionIds1[1],
+          userPositionId: toUserPositionId(trader1, positionIds1[1]),
+        },
+      })
+    ).data;
+
+    assert.equal(position.activeValue, 50);
+    assert.equal(position.lifetimeValue, 50);
+    assert.equal(trader1Position.balance, 20);
+    assert.equal(trader1Position.wrappedBalance, 10);
+    assert.equal(trader1Position.totalBalance, 30);
+    assert.lengthOf(position.conditions, 1);
+    assert.equal(trader1Position.position.id, positionIds1[1]);
+
+    const { userPosition: trader2Position } = (
+      await subgraphClient.query({
+        query: positionAndUserPositionQuery,
+        variables: {
+          positionId: positionIds1[1],
+          userPositionId: toUserPositionId(trader2, positionIds1[1]),
+        },
+      })
+    ).data;
+
+    assert.equal(trader2Position.balance, 0);
+    assert.equal(trader2Position.wrappedBalance, 20);
+    assert.equal(trader2Position.totalBalance, 20);
+    assert.equal(trader2Position.position.id, positionIds1[1]);
+  });
+
+  step('unwrap [$5:C1(b|c), $30:C1(a)]', async () => {
+    await wrapped1155Factory.unwrap(conditionalTokens.address, positionIds1[1], 20, trader1, '0x', {
+      from: trader2,
+    });
+    await wrapped1155Factory.batchUnwrap(
+      conditionalTokens.address,
+      positionIds1,
+      [5, 10],
+      trader1,
+      '0x',
+      { from: trader1 }
+    );
+  });
+
   step('T1 merge [$5:C1(b), $5:C1(c)] -C1-> $5:C1(b|c)', async () => {
     await conditionalTokens.mergePositions(
       collateralToken.address,
@@ -626,7 +725,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         variables: { userId: trader2.toLowerCase() },
       })
     ).data;
-    assert.lengthOf(user.userPositions, trader2StartingNumPositions + 1);
+    assert.lengthOf(user.userPositions, trader2StartingNumPositions + 2);
     assert.includeMembers(
       user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [positionIds1[0]]
@@ -658,7 +757,7 @@ describe('Complete scenario tests for accurate mappings', function () {
         variables: { userId: trader2.toLowerCase() },
       })
     ).data;
-    assert.lengthOf(user.userPositions, trader2StartingNumPositions + 3);
+    assert.lengthOf(user.userPositions, trader2StartingNumPositions + 4);
     assert.includeMembers(
       user.userPositions.map((userPosition) => '0x' + userPosition.id.slice(42)),
       [positionIds1[0], ...positionIds2]
