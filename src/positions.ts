@@ -305,7 +305,7 @@ function operateOnSubtree(
 
     let position = Position.load(positionId.toHex());
     if (position == null) {
-      if (operation !== SubtreeOperation.Split) {
+      if (operation === SubtreeOperation.Merge) {
         log.error("expected child position {} to exist", [positionId.toHex()]);
       }
 
@@ -328,7 +328,7 @@ function operateOnSubtree(
 
     if (zeroUserPosition != null) {
       position.activeValue = zeroUserPosition.balance.neg();
-    } else {
+    } else if (operation === SubtreeOperation.Merge) {
       log.error('could not retrieve zeroUserPosition for position {}', [
         position.id
       ]);
