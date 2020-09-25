@@ -305,7 +305,7 @@ function operateOnSubtree(
 
     let position = Position.load(positionId.toHex());
     if (position == null) {
-      if (operation !== SubtreeOperation.Split) {
+      if (operation === SubtreeOperation.Merge) {
         log.error("expected child position {} to exist", [positionId.toHex()]);
       }
 
@@ -320,6 +320,7 @@ function operateOnSubtree(
 
       position.activeValue = zeroAsBigInt;
       position.lifetimeValue = zeroAsBigInt;
+      position.createTimestamp = blockTimestamp;
     }
 
     let zeroUserPositionId = concat(zeroAddress, positionId);
@@ -327,7 +328,7 @@ function operateOnSubtree(
 
     if (zeroUserPosition != null) {
       position.activeValue = zeroUserPosition.balance.neg();
-    } else {
+    } else if (operation === SubtreeOperation.Merge) {
       log.error('could not retrieve zeroUserPosition for position {}', [
         position.id
       ]);
@@ -386,6 +387,7 @@ function operateOnSubtree(
       jointPosition.multiplicities = jointCollectionInfo.multiplicities;
       jointPosition.lifetimeValue = zeroAsBigInt;
       jointPosition.activeValue = zeroAsBigInt;
+      jointPosition.createTimestamp = blockTimestamp;
     }
 
     switch (operation) {
