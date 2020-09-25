@@ -320,6 +320,7 @@ function operateOnSubtree(
 
       position.activeValue = zeroAsBigInt;
       position.lifetimeValue = zeroAsBigInt;
+      position.createTimestamp = blockTimestamp;
     }
 
     let zeroUserPositionId = concat(zeroAddress, positionId);
@@ -386,6 +387,7 @@ function operateOnSubtree(
       jointPosition.multiplicities = jointCollectionInfo.multiplicities;
       jointPosition.lifetimeValue = zeroAsBigInt;
       jointPosition.activeValue = zeroAsBigInt;
+      jointPosition.createTimestamp = blockTimestamp;
     }
 
     switch (operation) {

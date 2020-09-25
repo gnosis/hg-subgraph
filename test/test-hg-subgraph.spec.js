@@ -89,12 +89,26 @@ async function getPosition(positionId) {
             indexSets
             lifetimeValue
             activeValue
+            createTimestamp
           }
         }
       `,
       variables: { positionId },
     })
   ).data.position;
+}
+
+async function getTxProps(txObj) {
+  const {
+    tx,
+    receipt: { blockNumber },
+  } = txObj;
+  const { timestamp } = await web3.eth.getBlock(blockNumber);
+  return {
+    tx,
+    blockNumber,
+    timestamp,
+  };
 }
 
 const rootCollectionId = `0x${'0'.repeat(64)}`;
@@ -136,14 +150,20 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
         const outcomeSlotCount = 3;
         const conditionId = getConditionId(oracle, questionId, outcomeSlotCount);
 
+        const txObj = await conditionalTokens.prepareCondition(
+          oracle,
+          questionId,
+          outcomeSlotCount,
+          {
+            from: creator,
+          }
+        );
+
         const {
           tx: createTransaction,
-          receipt: { blockNumber: createBlockNumber },
-        } = await conditionalTokens.prepareCondition(oracle, questionId, outcomeSlotCount, {
-          from: creator,
-        });
-
-        const { timestamp: createTimestamp } = await web3.eth.getBlock(createBlockNumber);
+          blockNumber: createBlockNumber,
+          timestamp: createTimestamp,
+        } = await getTxProps(txObj);
 
         conditionsInfo[i] = {
           conditionId,
@@ -240,17 +260,21 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
       });
 
       const partition1 = [0b011, 0b100];
-      let split1Info;
+      let split1Info, split1Timestamp;
       beforeEach('trader splits $100 on condition', async function () {
         await collateralToken.approve(conditionalTokens.address, 100, { from: trader });
-        await conditionalTokens.splitPosition(
-          collateralToken.address,
-          rootCollectionId,
-          conditionsInfo[0].conditionId,
-          partition1,
-          100,
-          { from: trader }
-        );
+        split1Timestamp = (
+          await getTxProps(
+            await conditionalTokens.splitPosition(
+              collateralToken.address,
+              rootCollectionId,
+              conditionsInfo[0].conditionId,
+              partition1,
+              100,
+              { from: trader }
+            )
+          )
+        ).timestamp;
 
         split1Info = partition1.map((indexSet) => {
           const collectionId = getCollectionId(conditionsInfo[0].conditionId, indexSet);
@@ -313,6 +337,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             ],
             conditionIds: [conditionsInfo[0].conditionId],
             indexSets: [indexSet.toString()],
+            createTimestamp: split1Timestamp.toString(),
             lifetimeValue: '100',
             activeValue: '100',
           });
@@ -753,14 +778,18 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
           const infos = [];
           for (const parent of split1Info) {
             const { collectionId: parentCollectionId } = parent;
-            await conditionalTokens.splitPosition(
-              collateralToken.address,
-              parentCollectionId,
-              conditionsInfo[1].conditionId,
-              partition2,
-              100,
-              { from: trader }
-            );
+            const splitTimestamp = (
+              await getTxProps(
+                await conditionalTokens.splitPosition(
+                  collateralToken.address,
+                  parentCollectionId,
+                  conditionsInfo[1].conditionId,
+                  partition2,
+                  100,
+                  { from: trader }
+                )
+              )
+            ).timestamp;
 
             infos.push(
               partition2.map((indexSet) => {
@@ -774,6 +803,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   indexSet,
                   collectionId,
                   positionId,
+                  splitTimestamp,
                 };
               })
             );
@@ -811,6 +841,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               ],
               conditionIds: [conditionsInfo[0].conditionId],
               indexSets: [parentIndexSet.toString()],
+              createTimestamp: split1Timestamp.toString(),
               lifetimeValue: '100',
               activeValue: '0',
             });
@@ -821,6 +852,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             positionId,
             collectionId,
             indexSet,
+            splitTimestamp,
           } of splits2Info) {
             const collection = await getCollection(collectionId);
             assert(collection, `collection ${collectionId} not found`);
@@ -858,6 +890,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 __typename: 'Collection',
                 id: collectionId,
               },
+              createTimestamp: splitTimestamp.toString(),
               lifetimeValue: '100',
               activeValue: '100',
             });
@@ -1444,6 +1477,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 ],
                 conditionIds: [conditionsInfo[0].conditionId],
                 indexSets: [parentIndexSet.toString()],
+                createTimestamp: split1Timestamp.toString(),
                 lifetimeValue: '100',
                 activeValue: '100',
               });
@@ -1454,6 +1488,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               positionId,
               collectionId,
               indexSet,
+              splitTimestamp,
             } of splits2Info) {
               const collection = await getCollection(collectionId);
               assert(collection, `collection ${collectionId} not found`);
@@ -1491,6 +1526,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Collection',
                   id: collectionId,
                 },
+                createTimestamp: splitTimestamp.toString(),
                 lifetimeValue: '100',
                 activeValue: '0',
               });
@@ -1531,14 +1567,18 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
             });
             for (const parent of mergeInfo) {
               const { collectionId: parentCollectionId } = parent;
-              await conditionalTokens.mergePositions(
-                collateralToken.address,
-                parentCollectionId,
-                conditionsInfo[0].conditionId,
-                partition1,
-                100,
-                { from: trader }
-              );
+              parent.mergeTimestamp = (
+                await getTxProps(
+                  await conditionalTokens.mergePositions(
+                    collateralToken.address,
+                    parentCollectionId,
+                    conditionsInfo[0].conditionId,
+                    partition1,
+                    100,
+                    { from: trader }
+                  )
+                )
+              ).timestamp;
             }
           });
 
@@ -1571,6 +1611,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 ],
                 conditionIds: [conditionsInfo[0].conditionId],
                 indexSets: [oldIndexSet.toString()],
+                createTimestamp: split1Timestamp.toString(),
                 lifetimeValue: '100',
                 activeValue: '0',
               });
@@ -1581,6 +1622,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               positionId,
               collectionId,
               indexSet,
+              splitTimestamp,
             } of splits2Info) {
               const collection = await getCollection(collectionId);
               assert(collection, `collection ${collectionId} not found`);
@@ -1618,6 +1660,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                   __typename: 'Collection',
                   id: collectionId,
                 },
+                createTimestamp: splitTimestamp.toString(),
                 lifetimeValue: '100',
                 activeValue: '0',
               });
@@ -1646,6 +1689,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               positionId: parentPositionId,
               collectionId: parentCollectionId,
               indexSet: parentIndexSet,
+              mergeTimestamp,
             } of mergeInfo) {
               const parentCollection = await getCollection(parentCollectionId);
 
@@ -1683,6 +1727,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
                 ],
                 conditionIds: [conditionsInfo[1].conditionId],
                 indexSets: [parentIndexSet.toString()],
+                createTimestamp: mergeTimestamp.toString(),
                 lifetimeValue: '100',
                 activeValue: '100',
               });
@@ -1729,6 +1774,7 @@ describe('hg-subgraph conditions <> collections <> positions', function () {
               ],
               conditionIds: [conditionsInfo[0].conditionId],
               indexSets: [indexSet.toString()],
+              createTimestamp: split1Timestamp.toString(),
               lifetimeValue: '100',
               activeValue: '0',
             });
