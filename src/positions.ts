@@ -302,15 +302,19 @@ function operateOnSubtree(
     }
 
     let positionId = toPositionId(collateralToken, collectionId);
+    let positionIdHex = positionId.toHex();
 
     let position = Position.load(positionId.toHex());
     if (position == null) {
       if (operation === SubtreeOperation.Merge) {
-        log.error("expected child position {} to exist", [positionId.toHex()]);
+        log.error("expected child position {} to exist", [positionIdHex]);
       }
 
-      position = new Position(positionId.toHex());
-      position.collateralToken = collateralToken.toHex();
+      position = new Position(positionIdHex);
+      position.positionId = positionIdHex;
+      let collateralTokenAddress = collateralToken.toHex();
+      position.collateralToken = collateralTokenAddress;
+      position.collateralTokenAddress = collateralTokenAddress;
       position.collection = collection.id;
 
       position.conditions = collection.conditions;
@@ -372,14 +376,18 @@ function operateOnSubtree(
     collateral.save();
   } else {
     let jointPositionId = toPositionId(collateralToken, jointCollectionId);
-    let jointPosition = Position.load(jointPositionId.toHex());
+    let jointPositionIdHex = jointPositionId.toHex()
+    let jointPosition = Position.load(jointPositionIdHex);
     if (jointPosition == null) {
       if (operation === SubtreeOperation.Split) {
-        log.error("expected joint position {} to exist", [jointPositionId.toHex()]);
+        log.error("expected joint position {} to exist", [jointPositionIdHex]);
       }
 
-      jointPosition = new Position(jointPositionId.toHex());
-      jointPosition.collateralToken = collateralToken.toHex();
+      jointPosition = new Position(jointPositionIdHex);
+      jointPosition.positionId = jointPositionIdHex;
+      let collateralTokenAddress = collateralToken.toHex();
+      jointPosition.collateralToken = collateralTokenAddress;
+      jointPosition.collateralTokenAddress = collateralTokenAddress;
       jointPosition.collection = jointCollectionId.toHex();
       jointPosition.conditions = jointCollectionInfo.conditions;
       jointPosition.conditionIds = jointCollectionInfo.conditions;

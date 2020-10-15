@@ -1,11 +1,12 @@
 type Condition @entity {
   id: ID!
+  conditionId: String!
 
-  oracle: Bytes!
-  questionId: Bytes!
+  oracle: String!
+  questionId: String!
   outcomeSlotCount: Int!
 
-  creator: Bytes!
+  creator: String!
   createTransaction: Bytes!
   createTimestamp: BigInt!
   createBlockNumber: BigInt!
@@ -41,8 +42,10 @@ type Collection @entity {
 
 type Position @entity {
   id: ID!
+  positionId: String!
 
   collateralToken: CollateralToken!
+  collateralTokenAddress: String!
   collection: Collection!
 
   # see note above about conditions/conditionIds duplication
@@ -57,6 +60,7 @@ type Position @entity {
   activeValue: BigInt!
 
   wrappedToken: WrappedToken @derivedFrom(field: "position")
+  wrappedTokenAddress: String
 }
 
 type UserPosition @entity {

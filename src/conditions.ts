@@ -10,13 +10,15 @@ import { Condition } from '../generated/schema';
 import { sum } from './utils';
 
 export function handleConditionPreparation(event: ConditionPreparation): void {
-  let condition = new Condition(event.params.conditionId.toHex());
+  let conditionId = event.params.conditionId.toHex()
+  let condition = new Condition(conditionId);
+  condition.conditionId = conditionId;
 
-  condition.oracle = event.params.oracle;
-  condition.questionId = event.params.questionId;
+  condition.oracle = event.params.oracle.toHex();
+  condition.questionId = event.params.questionId.toHex();
   condition.outcomeSlotCount = event.params.outcomeSlotCount.toI32();
 
-  condition.creator = event.transaction.from;
+  condition.creator = event.transaction.from.toHex();
   condition.createTransaction = event.transaction.hash;
   condition.createTimestamp = event.block.timestamp;
   condition.createBlockNumber = event.block.number;
