@@ -34,6 +34,7 @@ type Collection @entity {
   # the raw field data.
   conditions: [Condition!]!
   conditionIds: [ID!]!
+  conditionIdsStr: String!
   indexSets: [BigInt!]!
   multiplicities: [Int!]!
 
@@ -51,6 +52,7 @@ type Position @entity {
   # see note above about conditions/conditionIds duplication
   conditions: [Condition!]!
   conditionIds: [ID!]!
+  conditionIdsStr: String!
   indexSets: [BigInt!]!
   multiplicities: [Int!]!
 

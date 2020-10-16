@@ -185,8 +185,10 @@ function operateOnSubtree(
             );
     
             parentCollection = new Collection(parentCollectionId.toHex());
-            parentCollection.conditions = parentCollectionInfo.conditions;
-            parentCollection.conditionIds = parentCollectionInfo.conditions;
+            let conditionIds = parentCollectionInfo.conditions;
+            parentCollection.conditions = conditionIds;
+            parentCollection.conditionIds = conditionIds;
+            parentCollection.conditionIdsStr = conditionIds.join(' ');
             parentCollection.indexSets = parentCollectionInfo.indexSets;
             parentCollection.multiplicities = parentCollectionInfo.multiplicities;
     
@@ -247,8 +249,10 @@ function operateOnSubtree(
           );
   
           unionCollection = new Collection(jointCollectionId.toHex());
-          unionCollection.conditions = jointCollectionInfo.conditions;
-          unionCollection.conditionIds = jointCollectionInfo.conditions;
+          let conditionIds = jointCollectionInfo.conditions
+          unionCollection.conditions = conditionIds;
+          unionCollection.conditionIds = conditionIds;
+          unionCollection.conditionIdsStr = conditionIds.join(' ');
           unionCollection.indexSets = jointCollectionInfo.indexSets;
           unionCollection.multiplicities = jointCollectionInfo.multiplicities;
     
@@ -294,8 +298,10 @@ function operateOnSubtree(
         1,
       );
       collection = new Collection(collectionId.toHex());
-      collection.conditions = collectionInfo.conditions;
-      collection.conditionIds = collectionInfo.conditions;
+      let conditionIds = collectionInfo.conditions
+      collection.conditions = conditionIds;
+      collection.conditionIds = conditionIds;
+      collection.conditionIdsStr = conditionIds.join(' ');
       collection.indexSets = collectionInfo.indexSets;
       collection.multiplicities = collectionInfo.multiplicities;
       collection.save();
@@ -317,8 +323,10 @@ function operateOnSubtree(
       position.collateralTokenAddress = collateralTokenAddress;
       position.collection = collection.id;
 
-      position.conditions = collection.conditions;
-      position.conditionIds = collection.conditions;
+      let conditionIds = collection.conditions;
+      position.conditions = conditionIds;
+      position.conditionIds = conditionIds;
+      position.conditionIdsStr = conditionIds.join(' ');
       position.indexSets = collection.indexSets;
       position.multiplicities = collection.multiplicities;
 
@@ -389,8 +397,10 @@ function operateOnSubtree(
       jointPosition.collateralToken = collateralTokenAddress;
       jointPosition.collateralTokenAddress = collateralTokenAddress;
       jointPosition.collection = jointCollectionId.toHex();
-      jointPosition.conditions = jointCollectionInfo.conditions;
-      jointPosition.conditionIds = jointCollectionInfo.conditions;
+      let conditionIds = jointCollectionInfo.conditions
+      jointPosition.conditions = conditionIds;
+      jointPosition.conditionIds = conditionIds;
+      jointPosition.conditionIdsStr = conditionIds.join(' ')
       jointPosition.indexSets = jointCollectionInfo.indexSets;
       jointPosition.multiplicities = jointCollectionInfo.multiplicities;
       jointPosition.lifetimeValue = zeroAsBigInt;
