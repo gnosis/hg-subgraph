@@ -6,6 +6,7 @@
   "description": "A subgraph for Gnosis Conditional Tokens",
   "license": "LGPL-3.0",
   "scripts": {
+    "build-truffle-artifacts": "truffle compile && truffle run load-networks",
     "migrate": "npm explore @gnosis.pm/conditional-tokens-contracts -- truffle migrate --network=local --reset && npm explore 1155-to-20 -- truffle migrate --network=local --reset && npm explore @realitio/realitio-contracts/truffle -- truffle migrate && truffle migrate --network=local",
     "create-local": "graph create --node http://localhost:8020 gnosis/hg",
     "remove-local": "graph remove --node http://localhost:8020 gnosis/hg",
@@ -17,8 +18,8 @@
     "render-subgraph-config:rinkeby": "node ops/render-subgraph-conf.js rinkeby",
     "render-subgraph-config:mainnet": "node ops/render-subgraph-conf.js mainnet",
     "codegen": "npm run refresh-abi && npm run render-subgraph-config-local && graph codegen",
-    "codegen:rinkeby": "npm run refresh-abi && npm run render-subgraph-config:rinkeby && graph codegen",
-    "codegen:mainnet": "npm run refresh-abi && npm run render-subgraph-config:mainnet && graph codegen",
+    "codegen:rinkeby": "npm run build-truffle-artifacts && npm run refresh-abi && npm run render-subgraph-config:rinkeby && graph codegen",
+    "codegen:mainnet": "npm run build-truffle-artifacts && npm run refresh-abi && npm run render-subgraph-config:mainnet && graph codegen",
     "build": "graph build",
     "bootstrap-test": "wait-on http-get://localhost:8000 && npm run create-local",
     "test-fresh-deploy": "wait-on tcp:8545 && npm run migrate && npm run test-fresh-graph",
