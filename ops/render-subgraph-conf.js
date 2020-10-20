@@ -19,6 +19,19 @@ const artifacts = [
   fs.readJsonSync(
     path.join('node_modules', '1155-to-20', 'build', 'contracts', 'Wrapped1155Factory.json')
   ),
+  fs.readJsonSync(
+    path.join(
+      'node_modules',
+      '@realitio',
+      'realitio-contracts',
+      'truffle',
+      'build',
+      'contracts',
+      'Realitio.json'
+    )
+  ),
+  fs.readJsonSync(path.join('build', 'contracts', 'RealitioProxy.json')),
+  fs.readJsonSync(path.join('build', 'contracts', 'RealitioScalarAdapter.json')),
 ];
 
 const web3 = new Web3(
@@ -50,6 +63,7 @@ const templateData = { network };
   for (const [basepath, ext] of [
     ['subgraph', 'yaml'],
     [path.join('src', 'wrappedtokens'), 'ts'],
+    [path.join('src', 'realitio'), 'ts'],
   ]) {
     const template = fs.readFileSync(`${basepath}.template.${ext}`).toString();
     fs.writeFileSync(`${basepath}.${ext}`, mustache.render(template, templateData));

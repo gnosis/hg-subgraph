@@ -5,9 +5,24 @@ import {
   ConditionResolution
 } from '../generated/ConditionalTokens/ConditionalTokens';
 
-import { Condition } from '../generated/schema';
+import { Condition, Question, Category, ScalarQuestionLink } from '../generated/schema';
 
 import { sum } from './utils';
+
+export function assignQuestionToCondition(condition: Condition, questionId: string): void {
+  condition.question = questionId;
+  let question = Question.load(questionId);
+  if (question != null) {
+    if (question.category != null) {
+      let category = Category.load(question.category);
+      if (category != null) {
+        category.numConditions++;
+        category.numOpenConditions++;
+        category.save();
+      }
+    }
+  }
+}
 
 export function handleConditionPreparation(event: ConditionPreparation): void {
   let conditionId = event.params.conditionId.toHex()
@@ -24,6 +39,18 @@ export function handleConditionPreparation(event: ConditionPreparation): void {
   condition.createBlockNumber = event.block.number;
 
   condition.resolved = false;
+
+  if (event.params.oracle.toHexString() == '{{RealitioProxy.addressLowerCase}}') {
+    assignQuestionToCondition(condition, event.params.questionId.toHexString());
+  } else if (event.params.oracle.toHexString() == '{{RealitioScalarAdapter.addressLowerCase}}') {
+    let linkId = event.params.questionId.toHexString();
+    let link = ScalarQuestionLink.load(linkId);
+    if (link != null) {
+      assignQuestionToCondition(condition, link.realityEthQuestionId.toHexString());
+      condition.scalarLow = link.scalarLow;
+      condition.scalarHigh = link.scalarHigh;
+    }
+  }
 
   condition.save();
 }

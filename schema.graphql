@@ -20,6 +20,10 @@ type Condition @entity {
   payoutDenominator: BigInt
   payouts: [BigDecimal!]
 
+  question: Question
+  scalarLow: BigInt
+  scalarHigh: BigInt
+
   collections: [Collection!] @derivedFrom(field: "conditions")
   positions: [Position!] @derivedFrom(field: "conditions")
 }
@@ -95,4 +99,46 @@ type CollateralToken @entity {
 type WrappedToken @entity {
   id: ID!
   position: Position!
+}
+
+type Question @entity {
+  id: ID!
+
+  templateId: BigInt!
+  data: String!
+  title: String
+  outcomes: [String!]
+  category: String
+  language: String
+
+  arbitrator: String!
+  openingTimestamp: BigInt!
+  timeout: BigInt!
+
+  currentAnswer: Bytes
+  currentAnswerBond: BigInt
+  currentAnswerTimestamp: BigInt
+
+  isPendingArbitration: Boolean!
+  arbitrationOccurred: Boolean!
+
+  answerFinalizedTimestamp: BigInt
+
+  conditions: [Condition!]! @derivedFrom(field: "question")
+}
+
+type Category @entity {
+  id: ID!
+  numConditions: Int!
+  numOpenConditions: Int!
+  numClosedConditions: Int!
+}
+
+type ScalarQuestionLink @entity {
+  id: ID!
+  conditionQuestionId: Bytes!
+  realityEthQuestionId: Bytes!
+  question: Question
+  scalarLow: BigInt!
+  scalarHigh: BigInt!
 }
