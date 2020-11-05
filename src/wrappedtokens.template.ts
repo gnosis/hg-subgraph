@@ -8,8 +8,17 @@ import { bigIntToBytes32, touchUser, zeroAsBigInt } from './utils';
 export function handleWrapped1155Creation(event: Wrapped1155Creation): void {
     if (event.params.multiToken.toHexString() != '{{ConditionalTokens.addressLowerCase}}') return;
 
-    let wrappedToken = new WrappedToken(event.params.wrappedToken.toHexString());
-    wrappedToken.position = bigIntToBytes32(event.params.tokenId).toHexString();
+    let wrappedTokenAddress = event.params.wrappedToken.toHexString();
+    let wrappedToken = new WrappedToken(wrappedTokenAddress);
+    let positionId = bigIntToBytes32(event.params.tokenId).toHexString();
+    wrappedToken.position = positionId;
+    let position = Position.load(positionId)
+    if (position != null) {
+        position.wrappedTokenAddress = wrappedTokenAddress;
+        position.save();
+    } else {
+        log.error("wrapping unknown position {}", [positionId]);
+    }
     wrappedToken.save();
 
     Wrapped1155.create(event.params.wrappedToken);
