@@ -21,6 +21,12 @@ export function assignQuestionToCondition(condition: Condition, questionId: stri
         category.save();
       }
     }
+    if (question.title != null) {
+      condition.title = question.title;
+    }
+    if (question.outcomes != null) {
+      condition.outcomes = question.outcomes;
+    }
   }
 }
 

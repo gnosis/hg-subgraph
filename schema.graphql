@@ -21,6 +21,8 @@ type Condition @entity {
   payouts: [BigDecimal!]
 
   question: Question
+  title: String
+  outcomes: [String!]
   scalarLow: BigInt
   scalarHigh: BigInt
 
