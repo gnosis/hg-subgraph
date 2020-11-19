@@ -188,7 +188,7 @@ function operateOnSubtree(
             let conditionIds = parentCollectionInfo.conditions;
             parentCollection.conditions = conditionIds;
             parentCollection.conditionIds = conditionIds;
-            parentCollection.conditionIdsStr = conditionIds.join(' ');
+            parentCollection.conditionIdsStr = conditionIds.join('');
             parentCollection.indexSets = parentCollectionInfo.indexSets;
             parentCollection.multiplicities = parentCollectionInfo.multiplicities;
     
@@ -252,7 +252,7 @@ function operateOnSubtree(
           let conditionIds = jointCollectionInfo.conditions
           unionCollection.conditions = conditionIds;
           unionCollection.conditionIds = conditionIds;
-          unionCollection.conditionIdsStr = conditionIds.join(' ');
+          unionCollection.conditionIdsStr = conditionIds.join('');
           unionCollection.indexSets = jointCollectionInfo.indexSets;
           unionCollection.multiplicities = jointCollectionInfo.multiplicities;
     
@@ -301,7 +301,7 @@ function operateOnSubtree(
       let conditionIds = collectionInfo.conditions
       collection.conditions = conditionIds;
       collection.conditionIds = conditionIds;
-      collection.conditionIdsStr = conditionIds.join(' ');
+      collection.conditionIdsStr = conditionIds.join('');
       collection.indexSets = collectionInfo.indexSets;
       collection.multiplicities = collectionInfo.multiplicities;
       collection.save();
@@ -326,7 +326,7 @@ function operateOnSubtree(
       let conditionIds = collection.conditions;
       position.conditions = conditionIds;
       position.conditionIds = conditionIds;
-      position.conditionIdsStr = conditionIds.join(' ');
+      position.conditionIdsStr = conditionIds.join('');
       position.indexSets = collection.indexSets;
       position.multiplicities = collection.multiplicities;
 
@@ -400,7 +400,7 @@ function operateOnSubtree(
       let conditionIds = jointCollectionInfo.conditions
       jointPosition.conditions = conditionIds;
       jointPosition.conditionIds = conditionIds;
-      jointPosition.conditionIdsStr = conditionIds.join(' ')
+      jointPosition.conditionIdsStr = conditionIds.join('')
       jointPosition.indexSets = jointCollectionInfo.indexSets;
       jointPosition.multiplicities = jointCollectionInfo.multiplicities;
       jointPosition.lifetimeValue = zeroAsBigInt;
