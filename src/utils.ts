@@ -1,5 +1,5 @@
 import { log, BigInt, ByteArray, Bytes, Address } from '@graphprotocol/graph-ts';
-import { User } from '../generated/schema';
+import { Global, User } from '../generated/schema';
 
 export let zeroAsBigInt: BigInt = BigInt.fromI32(0);
 export let zeroAddress: Address = Address.fromString('0x0000000000000000000000000000000000000000');
@@ -150,4 +150,15 @@ export function unescape(input: string): string {
   }
 
   return output;
+}
+
+export function requireGlobal(): Global {
+  let global = Global.load('');
+  if (global == null) {
+    global = new Global('');
+    global.numConditions = 0;
+    global.numCollections = 0;
+    global.numPositions = 0;
+  }
+  return global as Global;
 }

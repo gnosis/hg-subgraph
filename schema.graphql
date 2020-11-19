@@ -142,3 +142,10 @@ type ScalarQuestionLink @entity {
   scalarLow: BigInt!
   scalarHigh: BigInt!
 }
+
+type Global @entity {
+  id: ID! # empty string
+  numConditions: Int!
+  numCollections: Int!
+  numPositions: Int!
+}

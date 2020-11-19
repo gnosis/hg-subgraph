@@ -8,7 +8,7 @@ import {
 
 import { Condition, CollateralToken, Collection, Position, UserPosition } from '../generated/schema';
 
-import { sum, zeroAsBigInt, concat, touchUser, zeroAddress } from './utils';
+import { sum, zeroAsBigInt, concat, touchUser, zeroAddress, requireGlobal } from './utils';
 
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
   for (let i = 0; i < indexSet.length && 8 * i < outcomeSlotCount; i++) {
@@ -141,6 +141,7 @@ function operateOnSubtree(
   indexSets: BigInt[],
   amount: BigInt,
 ): void {
+  let global = requireGlobal();
   let conditionIdHex = conditionId.toHex();
   let condition = Condition.load(conditionIdHex);
 
@@ -193,6 +194,7 @@ function operateOnSubtree(
             parentCollection.multiplicities = parentCollectionInfo.multiplicities;
     
             parentCollection.save();
+            global.numCollections += 1;
             break;
           }
         }
@@ -257,6 +259,7 @@ function operateOnSubtree(
           unionCollection.multiplicities = jointCollectionInfo.multiplicities;
     
           unionCollection.save();
+          global.numCollections += 1;
           break;
         }
       }
@@ -305,6 +308,7 @@ function operateOnSubtree(
       collection.indexSets = collectionInfo.indexSets;
       collection.multiplicities = collectionInfo.multiplicities;
       collection.save();
+      global.numCollections += 1;
     }
 
     let positionId = toPositionId(collateralToken, collectionId);
@@ -333,6 +337,8 @@ function operateOnSubtree(
       position.activeValue = zeroAsBigInt;
       position.lifetimeValue = zeroAsBigInt;
       position.createTimestamp = blockTimestamp;
+
+      global.numPositions += 1;
     }
 
     let zeroUserPositionId = concat(zeroAddress, positionId);
@@ -406,6 +412,8 @@ function operateOnSubtree(
       jointPosition.lifetimeValue = zeroAsBigInt;
       jointPosition.activeValue = zeroAsBigInt;
       jointPosition.createTimestamp = blockTimestamp;
+
+      global.numPositions += 1;
     }
 
     switch (operation) {
@@ -424,6 +432,8 @@ function operateOnSubtree(
 
     jointPosition.save();
   }
+
+  global.save();
 }
 
 export function handlePositionSplit(event: PositionSplit): void {
