@@ -56,6 +56,9 @@ export function handleConditionPreparation(event: ConditionPreparation): void {
       condition.scalarLow = link.scalarLow;
       condition.scalarHigh = link.scalarHigh;
     }
+  } else {
+    log.warning('Condition oracle address {} is not a known RealitioProxy address.', [condition.oracle]);
+    assignQuestionToCondition(condition, event.params.questionId.toHexString());
   }
 
   condition.save();
