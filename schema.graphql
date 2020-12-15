@@ -21,6 +21,8 @@ type Condition @entity {
   payouts: [BigDecimal!]
 
   question: Question
+  title: String
+  outcomes: [String!]
   scalarLow: BigInt
   scalarHigh: BigInt
 
@@ -141,4 +143,11 @@ type ScalarQuestionLink @entity {
   question: Question
   scalarLow: BigInt!
   scalarHigh: BigInt!
+}
+
+type Global @entity {
+  id: ID! # empty string
+  numConditions: Int!
+  numCollections: Int!
+  numPositions: Int!
 }

@@ -8,7 +8,7 @@ import {
 
 import { Condition, CollateralToken, Collection, Position, UserPosition } from '../generated/schema';
 
-import { sum, zeroAsBigInt, concat, touchUser, zeroAddress } from './utils';
+import { sum, zeroAsBigInt, concat, touchUser, zeroAddress, requireGlobal } from './utils';
 
 function isFullIndexSet(indexSet: BigInt, outcomeSlotCount: i32): boolean {
   for (let i = 0; i < indexSet.length && 8 * i < outcomeSlotCount; i++) {
@@ -141,6 +141,7 @@ function operateOnSubtree(
   indexSets: BigInt[],
   amount: BigInt,
 ): void {
+  let global = requireGlobal();
   let conditionIdHex = conditionId.toHex();
   let condition = Condition.load(conditionIdHex);
 
@@ -188,11 +189,12 @@ function operateOnSubtree(
             let conditionIds = parentCollectionInfo.conditions;
             parentCollection.conditions = conditionIds;
             parentCollection.conditionIds = conditionIds;
-            parentCollection.conditionIdsStr = conditionIds.join(' ');
+            parentCollection.conditionIdsStr = conditionIds.join('');
             parentCollection.indexSets = parentCollectionInfo.indexSets;
             parentCollection.multiplicities = parentCollectionInfo.multiplicities;
     
             parentCollection.save();
+            global.numCollections += 1;
             break;
           }
         }
@@ -252,11 +254,12 @@ function operateOnSubtree(
           let conditionIds = jointCollectionInfo.conditions
           unionCollection.conditions = conditionIds;
           unionCollection.conditionIds = conditionIds;
-          unionCollection.conditionIdsStr = conditionIds.join(' ');
+          unionCollection.conditionIdsStr = conditionIds.join('');
           unionCollection.indexSets = jointCollectionInfo.indexSets;
           unionCollection.multiplicities = jointCollectionInfo.multiplicities;
     
           unionCollection.save();
+          global.numCollections += 1;
           break;
         }
       }
@@ -301,10 +304,11 @@ function operateOnSubtree(
       let conditionIds = collectionInfo.conditions
       collection.conditions = conditionIds;
       collection.conditionIds = conditionIds;
-      collection.conditionIdsStr = conditionIds.join(' ');
+      collection.conditionIdsStr = conditionIds.join('');
       collection.indexSets = collectionInfo.indexSets;
       collection.multiplicities = collectionInfo.multiplicities;
       collection.save();
+      global.numCollections += 1;
     }
 
     let positionId = toPositionId(collateralToken, collectionId);
@@ -326,13 +330,15 @@ function operateOnSubtree(
       let conditionIds = collection.conditions;
       position.conditions = conditionIds;
       position.conditionIds = conditionIds;
-      position.conditionIdsStr = conditionIds.join(' ');
+      position.conditionIdsStr = conditionIds.join('');
       position.indexSets = collection.indexSets;
       position.multiplicities = collection.multiplicities;
 
       position.activeValue = zeroAsBigInt;
       position.lifetimeValue = zeroAsBigInt;
       position.createTimestamp = blockTimestamp;
+
+      global.numPositions += 1;
     }
 
     let zeroUserPositionId = concat(zeroAddress, positionId);
@@ -400,12 +406,14 @@ function operateOnSubtree(
       let conditionIds = jointCollectionInfo.conditions
       jointPosition.conditions = conditionIds;
       jointPosition.conditionIds = conditionIds;
-      jointPosition.conditionIdsStr = conditionIds.join(' ')
+      jointPosition.conditionIdsStr = conditionIds.join('')
       jointPosition.indexSets = jointCollectionInfo.indexSets;
       jointPosition.multiplicities = jointCollectionInfo.multiplicities;
       jointPosition.lifetimeValue = zeroAsBigInt;
       jointPosition.activeValue = zeroAsBigInt;
       jointPosition.createTimestamp = blockTimestamp;
+
+      global.numPositions += 1;
     }
 
     switch (operation) {
@@ -424,6 +432,8 @@ function operateOnSubtree(
 
     jointPosition.save();
   }
+
+  global.save();
 }
 
 export function handlePositionSplit(event: PositionSplit): void {

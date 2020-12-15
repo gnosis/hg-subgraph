@@ -7,7 +7,7 @@ import {
 
 import { Condition, Question, Category, ScalarQuestionLink } from '../generated/schema';
 
-import { sum } from './utils';
+import { requireGlobal, sum } from './utils';
 
 export function assignQuestionToCondition(condition: Condition, questionId: string): void {
   condition.question = questionId;
@@ -20,6 +20,12 @@ export function assignQuestionToCondition(condition: Condition, questionId: stri
         category.numOpenConditions++;
         category.save();
       }
+    }
+    if (question.title != null) {
+      condition.title = question.title;
+    }
+    if (question.outcomes != null) {
+      condition.outcomes = question.outcomes;
     }
   }
 }
@@ -53,6 +59,10 @@ export function handleConditionPreparation(event: ConditionPreparation): void {
   }
 
   condition.save();
+
+  let global = requireGlobal();
+  global.numConditions += 1
+  global.save()
 }
 
 export function handleConditionResolution(event: ConditionResolution): void {
