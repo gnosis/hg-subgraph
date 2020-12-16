@@ -10,5 +10,6 @@ build/
 # Created by project
 abis/
 subgraph.yaml
+src/conditions.ts
 src/realitio.ts
 src/wrappedtokens.ts

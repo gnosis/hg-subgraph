@@ -62,6 +62,7 @@ const templateData = { network };
 
   for (const [basepath, ext] of [
     ['subgraph', 'yaml'],
+    [path.join('src', 'conditions'), 'ts'],
     [path.join('src', 'wrappedtokens'), 'ts'],
     [path.join('src', 'realitio'), 'ts'],
   ]) {
