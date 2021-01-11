@@ -13,6 +13,8 @@
     "deploy-local": "graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 gnosis/hg",
     "deploy:rinkeby": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ gnosis/hg-rinkeby",
     "deploy:mainnet": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ gnosis/hg",
+    "deploy:sokol": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ gnosis/conditional-tokens-sokol",
+    "deploy:xdai": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ gnosis/conditional-tokens-xdai",
     "refresh-abi": "node ops/abiGenerator.js",
     "render-subgraph-config-local": "node ops/render-subgraph-conf.js",
     "render-subgraph-config:rinkeby": "node ops/render-subgraph-conf.js rinkeby",
@@ -20,6 +22,8 @@
     "codegen": "npm run refresh-abi && npm run render-subgraph-config-local && graph codegen",
     "codegen:rinkeby": "npm run build-truffle-artifacts && npm run refresh-abi && npm run render-subgraph-config:rinkeby && graph codegen",
     "codegen:mainnet": "npm run build-truffle-artifacts && npm run refresh-abi && npm run render-subgraph-config:mainnet && graph codegen",
+    "codegen:sokol": "npm run build-truffle-artifacts && npm run refresh-abi && npm run render-subgraph-config:mainnet && graph codegen",
+    "codegen:xdai": "npm run build-truffle-artifacts && npm run refresh-abi && npm run render-subgraph-config:mainnet && graph codegen",
     "build": "graph build",
     "bootstrap-test": "wait-on http-get://localhost:8000 && npm run create-local",
     "test-fresh-deploy": "wait-on tcp:8545 && npm run migrate && npm run test-fresh-graph",
@@ -27,7 +31,9 @@
     "test-existing-graph": "mocha --require mocha-steps --exit",
     "test": "npm run bootstrap-test && npm run test-fresh-deploy",
     "publish-graph:rinkeby": "npm run codegen:rinkeby && npm run deploy:rinkeby",
-    "publish-graph:mainnet": "npm run codegen:mainnet && npm run deploy:mainnet"
+    "publish-graph:mainnet": "npm run codegen:mainnet && npm run deploy:mainnet",
+    "publish-graph:sokol": "npm run codegen:mainnet && npm run deploy:sokol",
+    "publish-graph:xdai": "npm run codegen:mainnet && npm run deploy:xdai"
   },
   "devDependencies": {
     "1155-to-20": "^1.0.2",

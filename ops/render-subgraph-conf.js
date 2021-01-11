@@ -37,6 +37,10 @@ const artifacts = [
 const web3 = new Web3(
   Web3.givenProvider || network === 'development'
     ? 'http://localhost:8545'
+    : network === 'xdai'
+    ? 'https://rpc.xdaichain.com'
+    : network === 'sokol'
+    ? 'https://sokol.poa.network'
     : `https://${network}.infura.io/v3/d743990732244555a1a0e82d5ab90c7f`
 );
 
