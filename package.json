@@ -32,8 +32,8 @@
     "test": "npm run bootstrap-test && npm run test-fresh-deploy",
     "publish-graph:rinkeby": "npm run codegen:rinkeby && npm run deploy:rinkeby",
     "publish-graph:mainnet": "npm run codegen:mainnet && npm run deploy:mainnet",
-    "publish-graph:sokol": "npm run codegen:mainnet && npm run deploy:sokol",
-    "publish-graph:xdai": "npm run codegen:mainnet && npm run deploy:xdai"
+    "publish-graph:sokol": "npm run codegen:sokol && npm run deploy:sokol",
+    "publish-graph:xdai": "npm run codegen:xdai && npm run deploy:xdai"
   },
   "devDependencies": {
     "1155-to-20": "^1.0.2",
