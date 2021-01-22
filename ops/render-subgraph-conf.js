@@ -47,14 +47,26 @@ const web3 = new Web3(
 const templateData = { network };
 
 (async () => {
-  const netId = network === 'mainnet' ? 1 : network === 'rinkeby' ? 4 : await web3.eth.net.getId();
+  const netId =
+    network === 'mainnet'
+      ? 1
+      : network === 'rinkeby'
+      ? 4
+      : network === 'sokol'
+      ? 77
+      : network === 'xdai'
+      ? 100
+      : await web3.eth.net.getId();
+  console.log(netId);
 
   for (const artifact of artifacts) {
     const { contractName } = artifact;
+    console.log(contractName);
 
     if (artifact.networks == null || artifact.networks[netId] == null)
       throw new Error(`${contractName} not deployed on network ${netId}`);
 
+    console.log(netId);
     const { address, transactionHash } = artifact.networks[netId];
     const { blockNumber } = await web3.eth.getTransactionReceipt(transactionHash);
     templateData[contractName] = {
