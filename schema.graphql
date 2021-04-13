@@ -67,7 +67,7 @@ type Position @entity {
   lifetimeValue: BigInt!
   activeValue: BigInt!
 
-  wrappedToken: WrappedToken @derivedFrom(field: "position")
+  wrappedTokens: [WrappedToken!]! @derivedFrom(field: "position")
   wrappedTokenAddress: String
 }
 
