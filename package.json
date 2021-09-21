@@ -38,7 +38,7 @@
     "publish-graph:xdai": "npm run codegen:xdai && npm run deploy:xdai"
   },
   "devDependencies": {
-    "1155-to-20": "^1.0.2",
+    "1155-to-20": "https://github.com/gnosis/1155-to-20",
     "@gnosis.pm/conditional-tokens-contracts": "^1.0.3",
     "@graphprotocol/graph-cli": "^0.19.0",
     "@graphprotocol/graph-ts": "^0.19.0",
