@@ -1,4 +1,4 @@
-import { crypto, log, Address, BigInt, Bytes } from '@graphprotocol/graph-ts';
+import { crypto, log, Address, BigInt, Bytes, ByteArray } from '@graphprotocol/graph-ts';
 import {
   PositionSplit,
   PositionsMerge,
@@ -28,7 +28,7 @@ function isZeroCollectionId(collectionId: Bytes): boolean {
 }
 
 function toPositionId(collateralToken: Address, collectionId: Bytes): Bytes {
-  let hashPayload = new Uint8Array(52);
+  let hashPayload = new ByteArray(52);
   hashPayload.fill(0);
   for (let i = 0; i < collateralToken.length && i < 20; i++) {
     hashPayload[i] = collateralToken[i];
@@ -36,7 +36,7 @@ function toPositionId(collateralToken: Address, collectionId: Bytes): Bytes {
   for (let i = 0; i < collectionId.length && i < 32; i++) {
     hashPayload[i + 20] = collectionId[i];
   }
-  return crypto.keccak256(hashPayload as Bytes) as Bytes;
+  return Bytes.fromByteArray(crypto.keccak256(hashPayload));
 }
 
 enum SubtreeOperation {
@@ -153,7 +153,7 @@ function operateOnSubtree(
   let jointCollectionInfo: CollectionInfo;
   
   let unionIndexSet = sum(indexSets);
-  let changesDepth = operation === SubtreeOperation.Redeem || isFullIndexSet(unionIndexSet, condition.outcomeSlotCount);
+  let changesDepth = operation === SubtreeOperation.Redeem || isFullIndexSet(unionIndexSet, condition!.outcomeSlotCount);
   let rootBranch = isZeroCollectionId(parentCollectionId);
   
   if (changesDepth) {

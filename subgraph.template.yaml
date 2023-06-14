@@ -13,7 +13,7 @@ dataSources:
       startBlock: {{ConditionalTokens.startBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.5
       language: wasm/assemblyscript
       entities:
         - Condition
@@ -52,7 +52,7 @@ dataSources:
       startBlock: {{Wrapped1155Factory.startBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.5
       language: wasm/assemblyscript
       entities:
         - WrappedToken
@@ -73,7 +73,7 @@ dataSources:
       startBlock: {{Realitio.startBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.5
       language: wasm/assemblyscript
       entities:
         - Question
@@ -103,7 +103,7 @@ dataSources:
       startBlock: {{RealitioScalarAdapter.startBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.3
+      apiVersion: 0.0.5
       language: wasm/assemblyscript
       entities:
         - ScalarQuestionLink
@@ -123,7 +123,7 @@ templates:
       abi: Wrapped1155
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.5
       language: wasm/assemblyscript
       entities:
         - WrappedToken
