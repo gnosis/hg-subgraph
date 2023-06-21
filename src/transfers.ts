@@ -1,4 +1,4 @@
-import { Address, BigInt, Bytes } from '@graphprotocol/graph-ts';
+import { Address, BigInt, ByteArray, Bytes } from '@graphprotocol/graph-ts';
 
 import {
   TransferSingle,
@@ -16,7 +16,7 @@ function recordUserPositionChange(
   value: BigInt,
   isCredit: boolean,
 ): void {
-  let userPositionId = concat(userAddress, positionIdBytes) as Bytes;
+  let userPositionId = Bytes.fromByteArray(concat(userAddress, positionIdBytes));
   let userPosition = UserPosition.load(userPositionId.toHex());
   if (userPosition == null) {
     userPosition = new UserPosition(userPositionId.toHex());

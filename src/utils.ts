@@ -13,23 +13,23 @@ export function sum(a: BigInt[]): BigInt {
 }
 
 export function bigIntToBytes32(bigInt: BigInt): Bytes {
-  let sum = new Uint8Array(32) as Bytes;
+  let sum = new Uint8Array(32);
   sum.fill(0);
   for (let i = 0; i < bigInt.length && i < 32; i++) {
     sum[31 - i] = bigInt[i];
   }
-  return sum;
+  return Bytes.fromUint8Array(sum);
 }
 
 export function concat(a: ByteArray, b: ByteArray): ByteArray {
-  let out = new Uint8Array(a.length + b.length);
+  let out = new ByteArray(a.length + b.length);
   for (let i = 0; i < a.length; i++) {
     out[i] = a[i];
   }
   for (let j = 0; j < b.length; j++) {
     out[a.length + j] = b[j];
   }
-  return out as ByteArray;
+  return out;
 }
 
 export function touchUser(userAddress: Address, blockTimestamp: BigInt): User {
